@@ -4,7 +4,7 @@ A lightweight Chrome Extension (Manifest V3) that lets you **right-click any tex
 
 ---
 
-## ✨ Features
+##  Features
 
 - **Verify Claim** — Highlight text → Right-click → Fact-check against live web sources
 - **Verify Image** — Right-click any image → Claude Vision extracts all details → web searched and verified
@@ -19,7 +19,7 @@ A lightweight Chrome Extension (Manifest V3) that lets you **right-click any tex
 
 ---
 
-## 🏗 Architecture
+##  Architecture
 
 ```
 v002/
@@ -47,7 +47,7 @@ v002/
 
 ---
 
-## 🚀 Setup
+##  Setup
 
 ### Prerequisites
 - Node.js 18+
@@ -92,13 +92,13 @@ The backend will run at `http://localhost:3000`.
 
 ---
 
-## 🧠 AI Pipeline
+##  AI Pipeline
 
 1. **Image Extraction** (`claude-sonnet-4-5`) — Vision analysis: visible text (Bengali-aware), people, location, tone, manipulation signals, key claim
 2. **Web Search + Verdict** (`claude-sonnet-4-5` + `web_search_20250305` tool) — Targeted 2-step agentic loop: one web search → final JSON verdict
 
 ---
 
-## 📄 License
+##  License
 
 MIT
