@@ -1,0 +1,29 @@
+# Node.js backend
+backend/node_modules/
+backend/.env
+backend/.env.local
+backend/.env.*.local
+
+# Environment files anywhere in project
+.env
+.env.local
+.env.development
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/
+
+# Temporary test images
+*.jpg
+*.jpeg
+*.png
+!icon.png

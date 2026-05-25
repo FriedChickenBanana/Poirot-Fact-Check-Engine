@@ -1,0 +1,128 @@
+#misinfo-detector-ui {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 320px;
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  padding: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  z-index: 2147483647; /* Max z-index to stay on top */
+  border: 1px solid #333;
+  box-sizing: border-box;
+}
+
+#misinfo-detector-ui .misinfo-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+#misinfo-detector-ui .misinfo-close:hover {
+  color: #fff;
+}
+
+#misinfo-detector-ui .misinfo-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  margin-top: 4px;
+}
+
+#misinfo-detector-ui .misinfo-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+#misinfo-detector-ui .badge-true {
+  background-color: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.4);
+}
+
+#misinfo-detector-ui .badge-false {
+  background-color: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.4);
+}
+
+#misinfo-detector-ui .badge-uncertain {
+  background-color: rgba(241, 196, 15, 0.2);
+  color: #f1c40f;
+  border: 1px solid rgba(241, 196, 15, 0.4);
+}
+
+#misinfo-detector-ui .badge-satirical {
+  background-color: rgba(155, 89, 182, 0.2);
+  color: #9b59b6;
+  border: 1px solid rgba(155, 89, 182, 0.4);
+}
+
+#misinfo-detector-ui .badge-error {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #aaa;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+#misinfo-detector-ui .misinfo-confidence {
+  font-size: 12px;
+  color: #aaa;
+}
+
+#misinfo-detector-ui .misinfo-explanation {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 12px 0;
+  color: #ccc;
+}
+
+#misinfo-detector-ui .misinfo-findings {
+  font-size: 12px;
+  border-top: 1px solid #333;
+  padding-top: 8px;
+  margin-bottom: 8px;
+}
+
+#misinfo-detector-ui .misinfo-findings ul {
+  margin: 4px 0 0 0;
+  padding-left: 20px;
+  color: #ccc;
+}
+
+#misinfo-detector-ui .misinfo-findings li {
+  margin-bottom: 3px;
+  line-height: 1.4;
+}
+
+#misinfo-detector-ui .misinfo-sources {
+  font-size: 12px;
+  border-top: 1px solid #333;
+  padding-top: 8px;
+}
+
+#misinfo-detector-ui .misinfo-sources ul {
+  margin: 4px 0 0 0;
+  padding-left: 20px;
+}
+
+#misinfo-detector-ui .misinfo-sources a {
+  color: #5dade2;
+  text-decoration: none;
+}
+
+#misinfo-detector-ui .misinfo-sources a:hover {
+  text-decoration: underline;
+}
