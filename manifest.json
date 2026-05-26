@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Misinfo Detector",
+  "name": "Poirot : Misinfo Detector",
   "version": "1.0",
   "description": "Fact-checking assistant using Claude and Tavily.",
   "permissions": [
