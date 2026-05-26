@@ -50,8 +50,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       
       const result = await response.json();
       
-      // Save to history
-      saveToHistory({ ...result, ...payload, timestamp: Date.now() });
+      // Save to history (excluding the giant base64 string to avoid quota limit errors)
+      const historyItem = { ...result, ...payload, timestamp: Date.now() };
+      delete historyItem.base64; 
+      saveToHistory(historyItem);
 
       // Send result back to content script
       chrome.tabs.sendMessage(tab.id, { action: "showResult", result }).catch(e => console.error(e));
