@@ -4,13 +4,14 @@
   "description": "Backend for Misinfo Detector Chrome Extension",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "nodemon server.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
     "@tavily/core": "^0.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.21.1"
+    "express": "^4.21.1",
+    "nodemon": "^3.1.14"
   }
 }

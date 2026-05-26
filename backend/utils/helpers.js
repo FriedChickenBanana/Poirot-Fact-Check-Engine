@@ -12,6 +12,10 @@ function buildImageBlock(base64) {
 
 // ─── Extract JSON from Claude's response text ──────────────────────────────
 function extractJson(text) {
+  const codeBlockMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+  if (codeBlockMatch) {
+    return JSON.parse(codeBlockMatch[1]);
+  }
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) throw new Error('No JSON found in response');
   return JSON.parse(m[0]);

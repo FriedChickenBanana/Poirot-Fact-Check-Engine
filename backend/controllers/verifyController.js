@@ -37,6 +37,16 @@ async function verifyFactCheck(req, res, next) {
     // ── Step 3: Build user prompt for search+verdict ───────────────────────
     const promptParts = [];
 
+    const chainOfThoughtInstructions = [
+      'To ensure accuracy, follow these steps before giving your final verdict:',
+      '1. List the entities and core claim.',
+      '2. Evaluate the evidence from the search results.',
+      '3. Identify any logical fallacies or manipulated context.',
+      '4. Output your final verdict strictly as a JSON object wrapped inside a ```json ... ``` codeblock.'
+    ].join('\\n');
+
+    const oneShotJsonInstructions = 'Then verify whether this claim is true or false and strictly output your final verdict as a JSON object wrapped inside a ```json ... ``` codeblock.';
+
     let promptText;
     if (extracted) {
       // Image flow: pass extracted context + ask to search
@@ -52,16 +62,16 @@ async function verifyFactCheck(req, res, next) {
         `Key Claim: ${extracted.key_claim || 'Unknown'}`,
         '',
         `Search the web using this query: "${extracted.search_query || extracted.key_claim}"`,
-        'Then verify whether this claim is true or false and output your JSON verdict.'
+        oneShotJsonInstructions
       ];
-      promptText = lines.join('\n');
+      promptText = lines.join('\\n');
     } else if (imageBlock) {
       // Fallback if extraction failed for some reason
       promptParts.push(imageBlock);
-      promptText = `Fact-check this image. Search the web to verify it, then output your JSON verdict.`;
+      promptText = `Fact-check this image. Search the web to verify it. ${oneShotJsonInstructions}`;
     } else {
       // Text flow: straightforward fact-check
-      promptText = `Fact-check the following claim:\n\n"${content}"\n\nSearch the web to verify this claim, then output your JSON verdict.`;
+      promptText = `Fact-check the following claim:\\n\\n"${content}"\\n\\nSearch the web to verify this claim.\\n\\n${chainOfThoughtInstructions}`;
     }
 
     promptParts.push({ type: 'text', text: promptText });
