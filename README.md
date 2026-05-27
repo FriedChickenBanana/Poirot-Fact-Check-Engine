@@ -52,21 +52,48 @@ v002/
 ### Prerequisites
 - Node.js 18+
 - An [Anthropic API key](https://console.anthropic.com/)
+- A PostgreSQL database (e.g., [Neon DB](https://neon.tech/)) for user feedback
+- a [Cloudinary](https://cloudinary.com/) account for image storage
 - Google Chrome
 
-### 1. Backend
+### 1. Database Setup
+
+Run the following SQL in your Neon DB SQL Editor to create the feedback table:
+
+```sql
+CREATE TABLE IF NOT EXISTS user_feedback (
+    id SERIAL PRIMARY KEY,
+    claim_type VARCHAR(10) NOT NULL CHECK (claim_type IN ('text', 'image')),
+    claim_content TEXT NOT NULL, 
+    agent_verdict VARCHAR(50) NOT NULL,
+    agent_explanation TEXT,
+    feedback_is_positive BOOLEAN NOT NULL, 
+    user_explanation TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### 2. Backend
 
 ```bash
 cd backend
 npm install
 cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
+```
+
+**Edit your `.env` file** to include:
+- `ANTHROPIC_API_KEY`
+- `DATABASE_URL` (from Neon DB)
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (from Cloudinary)
+
+Then, start the server:
+```bash
 npm start
 ```
 
 The backend will run at `http://localhost:3000`.
 
-### 2. Chrome Extension
+### 3. Chrome Extension
 
 1. Open Chrome and navigate to `chrome://extensions/`
 2. Enable **Developer mode** (top right toggle)
@@ -87,8 +114,12 @@ The backend will run at `http://localhost:3000`.
 
 | Variable | Description |
 |----------|-------------|
-| `ANTHROPIC_API_KEY` | Your Anthropic API key (required) |
 | `PORT` | Backend port (default: `3000`) |
+| `ANTHROPIC_API_KEY` | Your Anthropic API key (required) |
+| `DATABASE_URL` | Neon DB Postgres Connection String (required) |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary Cloud Name (required) |
+| `CLOUDINARY_API_KEY` | Cloudinary API Key (required) |
+| `CLOUDINARY_API_SECRET`| Cloudinary API Secret (required) |
 
 ---
 

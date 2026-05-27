@@ -62,5 +62,49 @@ function createOrUpdatePopup(data) {
     <p class="misinfo-explanation">${data.explanation || ""}</p>
     ${findingsHtml}
     ${sourcesHtml}
+    
+    ${!data.loading && !data.isFeedback ? `
+    <div class="misinfo-feedback" id="misinfo-feedback-section">
+      <strong>Was this helpful?</strong>
+      <button id="misinfo-thumb-up">👍 Yes</button>
+      <button id="misinfo-thumb-down">👎 No</button>
+      <div id="misinfo-feedback-form" style="display: none; margin-top: 10px;">
+        <textarea id="misinfo-user-explanation" placeholder="Tell us why..." style="width:100%;"></textarea>
+        <button id="misinfo-submit-feedback" style="margin-top:5px;">Submit Feedback</button>
+      </div>
+    </div>
+    ` : ''}
   `;
+
+  if (!data.loading && !data.isFeedback) {
+    let isPositive = null;
+    document.getElementById("misinfo-thumb-up").onclick = () => {
+      isPositive = true;
+      document.getElementById("misinfo-feedback-form").style.display = "block";
+    };
+    document.getElementById("misinfo-thumb-down").onclick = () => {
+      isPositive = false;
+      document.getElementById("misinfo-feedback-form").style.display = "block";
+    };
+    document.getElementById("misinfo-submit-feedback").onclick = async () => {
+      const userText = document.getElementById("misinfo-user-explanation").value;
+      document.getElementById("misinfo-feedback-section").innerHTML = "<em>Feedback submitted. Thank you!</em>";
+      
+      const payload = {
+        type: data.originalType || "text",
+        content: data.originalContent || "",
+        base64: data.originalBase64 || "",
+        verdict: data.verdict,
+        explanation: data.explanation,
+        feedbackIsPositive: isPositive,
+        userExplanation: userText
+      };
+
+      try {
+        chrome.runtime.sendMessage({ action: "submitFeedback", payload });
+      } catch (err) {
+        console.error("Feedback error", err);
+      }
+    };
+  }
 }

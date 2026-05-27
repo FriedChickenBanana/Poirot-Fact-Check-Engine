@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const verifyRoutes = require('./routes/verifyRoutes');
+const feedbackRoutes = require('./routes/feedbackRoutes');
 
 const app = express();
 app.use(cors());
@@ -12,6 +13,7 @@ app.get('/', (req, res) => res.send('Misinfo Detector Backend is running!'));
 
 // API Routes
 app.use('/verify', verifyRoutes);
+app.use('/feedback', feedbackRoutes);
 
 // Global Error Handler Middleware
 app.use((err, req, res, next) => {

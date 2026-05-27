@@ -14,8 +14,26 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "verifyClaim" || info.menuItemId === "verifyImage") {
-    // Show loading UI on the page
-    chrome.tabs.sendMessage(tab.id, { action: "showLoading" }).catch(e => console.error(e));
+    // Prevent running on restricted internal browser pages
+    if (!tab.url || tab.url.startsWith("chrome://") || tab.url.startsWith("edge://") || tab.url.startsWith("about:")) {
+      console.error("Extensions cannot interact with internal browser pages.");
+      return;
+    }
+
+    // Show loading UI, inject scripts dynamically if they are missing (common after extension reload)
+    try {
+      await chrome.tabs.sendMessage(tab.id, { action: "showLoading" });
+    } catch (e) {
+      console.warn("Content script disconnected or missing. Injecting dynamically...", e);
+      try {
+        await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["content.css"] });
+        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+        await chrome.tabs.sendMessage(tab.id, { action: "showLoading" });
+      } catch (injectionError) {
+        console.error("Failed to inject UI:", injectionError);
+        return; // Abort if we literally can't show the UI
+      }
+    }
 
     let payload;
     if (info.menuItemId === "verifyClaim") {
@@ -56,7 +74,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       saveToHistory(historyItem);
 
       // Send result back to content script
-      chrome.tabs.sendMessage(tab.id, { action: "showResult", result }).catch(e => console.error(e));
+      chrome.tabs.sendMessage(tab.id, { 
+        action: "showResult", 
+        result: {
+          ...result,
+          originalType: payload.type,
+          originalContent: payload.content,
+          originalBase64: payload.base64
+        }
+      }).catch(e => console.error(e));
     } catch (error) {
       console.error(error);
       chrome.tabs.sendMessage(tab.id, { 
@@ -75,3 +101,13 @@ function saveToHistory(item) {
     chrome.storage.local.set({ history });
   });
 }
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "submitFeedback") {
+    fetch("http://localhost:3000/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request.payload)
+    }).catch(e => console.error("Ext Fetch Error:", e));
+  }
+});
