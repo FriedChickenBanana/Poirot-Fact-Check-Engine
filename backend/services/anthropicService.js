@@ -66,11 +66,15 @@ async function searchAndVerdict(userContent) {
   let collectedUrls = [];
 
   for (let i = 0; i < 2; i++) {
+    const isLastIteration = i === 1;
     const response = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 900,
       system: VERDICT_SYSTEM,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      // On the final iteration force text output — prevents Claude from searching
+      // again instead of writing its verdict, which would leave text empty.
+      ...(isLastIteration && { tool_choice: { type: 'none' } }),
       messages
     });
 
