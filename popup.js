@@ -1,6 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
   const historyList = document.getElementById('history-list');
   const noHistory = document.getElementById('no-history');
+  const backendUrlInput = document.getElementById('backend-url');
+  const saveBackendUrlButton = document.getElementById('save-backend-url');
+  const backendSaveStatus = document.getElementById('backend-save-status');
+
+  const DEFAULT_BACKEND_BASE_URL = "http://localhost:3000";
+
+  function normalizeBaseUrl(value) {
+    const trimmed = (value || "").trim();
+    if (!trimmed) return DEFAULT_BACKEND_BASE_URL;
+    return trimmed.replace(/\/+$/, "");
+  }
 
   chrome.storage.local.get({ history: [] }, (data) => {
     if (data.history.length === 0) {
@@ -31,5 +42,25 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
       historyList.appendChild(div);
     });
+  });
+
+  chrome.storage.sync.get({ backendBaseUrl: DEFAULT_BACKEND_BASE_URL }, (data) => {
+    backendUrlInput.value = normalizeBaseUrl(data.backendBaseUrl);
+  });
+
+  function saveBackendUrl() {
+    const normalized = normalizeBaseUrl(backendUrlInput.value);
+    chrome.storage.sync.set({ backendBaseUrl: normalized }, () => {
+      backendUrlInput.value = normalized;
+      backendSaveStatus.textContent = "Saved";
+      setTimeout(() => {
+        backendSaveStatus.textContent = "";
+      }, 2000);
+    });
+  }
+
+  saveBackendUrlButton.addEventListener('click', saveBackendUrl);
+  backendUrlInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') saveBackendUrl();
   });
 });

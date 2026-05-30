@@ -1,3 +1,25 @@
+const DEFAULT_BACKEND_BASE_URL = "http://localhost:3000";
+
+function normalizeBaseUrl(value) {
+  const trimmed = (value || "").trim();
+  if (!trimmed) return DEFAULT_BACKEND_BASE_URL;
+  return trimmed.replace(/\/+$/, "");
+}
+
+function getBackendBaseUrl() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(
+      { backendBaseUrl: DEFAULT_BACKEND_BASE_URL },
+      (data) => resolve(normalizeBaseUrl(data.backendBaseUrl))
+    );
+  });
+}
+
+function buildBackendUrl(baseUrl, path) {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${baseUrl}${normalizedPath}`;
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "verifyClaim",
@@ -60,7 +82,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     }
 
     try {
-      const response = await fetch("http://localhost:3000/verify", {
+      const baseUrl = await getBackendBaseUrl();
+      const response = await fetch(buildBackendUrl(baseUrl, "/verify"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -104,10 +127,12 @@ function saveToHistory(item) {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "submitFeedback") {
-    fetch("http://localhost:3000/feedback", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request.payload)
-    }).catch(e => console.error("Ext Fetch Error:", e));
+    getBackendBaseUrl()
+      .then((baseUrl) => fetch(buildBackendUrl(baseUrl, "/feedback"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request.payload)
+      }))
+      .catch(e => console.error("Ext Fetch Error:", e));
   }
 });
