@@ -96,15 +96,14 @@
 }
 
 #misinfo-detector-ui .misinfo-speak {
+  margin-left: auto;
   background: #000000;
   color: #ffffff;
   border: 2px solid #ffffff;
-  padding: 4px 8px;
-  font-size: 14px;
+  padding: 4px 6px;
+  font-size: 12px;
   cursor: pointer;
-  font-family: Arial, sans-serif;
-  min-width: 32px;
-  text-align: center;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 #misinfo-detector-ui .misinfo-speak:hover {
