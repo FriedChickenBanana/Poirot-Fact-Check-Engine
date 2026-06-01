@@ -70,15 +70,21 @@ async function verifyFactCheck(req, res, next) {
     // ── Step 3d: Build Claude prompt ──────────────────────────────────────
     const promptParts = [];
 
-    const chainOfThoughtInstructions = [
-      'To ensure accuracy, follow these steps before giving your final verdict:',
-      '1. List the entities and core claim.',
+    const jsonOnlyInstructions = [
+      'To ensure accuracy, think through these steps silently before answering:',
+      '1. Identify the entities and core claim.',
       '2. Evaluate the evidence from the search results.',
-      '3. Identify any logical fallacies or manipulated context.',
-      '4. Output your final verdict strictly as a JSON object wrapped inside a ```json ... ``` codeblock.'
+      '3. Check for manipulation or missing context.',
+      'Return only a JSON object with this schema:',
+      '{',
+      '  "verdict": "Likely True" | "Likely False" | "Uncertain" | "Satirical",',
+      '  "confidence": 0-100,',
+      '  "explanation": "3-5 lines citing specific evidence from your web search.",',
+      '  "key_findings": ["finding 1", "finding 2"],',
+      '  "sources": ["url1", "url2"]',
+      '}',
+      'Do not include code fences or any extra text.'
     ].join('\\n');
-
-    const oneShotJsonInstructions = 'Then verify whether this claim is true or false and strictly output your final verdict as a JSON object wrapped inside a ```json ... ``` codeblock.';
 
     let promptText;
     if (extracted) {
@@ -95,15 +101,15 @@ async function verifyFactCheck(req, res, next) {
         factCheckSection,
         '',
         `Search the web using this query: "${extracted.search_query || extracted.key_claim}"`,
-        oneShotJsonInstructions
+        jsonOnlyInstructions
       ];
       promptText = lines.join('\\n');
     } else if (imageBlock) {
       // Fallback if extraction failed
       promptParts.push(imageBlock);
-      promptText = `Fact-check this image. Search the web to verify it. ${oneShotJsonInstructions}`;
+      promptText = `Fact-check this image. Search the web to verify it. ${jsonOnlyInstructions}`;
     } else {
-      promptText = `Fact-check the following claim:\\n\\n"${content}"\\n\\nSearch the web to verify this claim.\\n${factCheckSection}\\n\\n${chainOfThoughtInstructions}`;
+      promptText = `Fact-check the following claim:\\n\\n"${content}"\\n\\nSearch the web to verify this claim.\\n${factCheckSection}\\n\\n${jsonOnlyInstructions}`;
     }
 
     promptParts.push({ type: 'text', text: promptText });

@@ -12,13 +12,70 @@ function buildImageBlock(base64) {
 
 // ─── Extract JSON from Claude's response text ──────────────────────────────
 function extractJson(text) {
-  const codeBlockMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-  if (codeBlockMatch) {
-    return JSON.parse(codeBlockMatch[1]);
+  const raw = String(text || '');
+  if (!raw.trim()) throw new Error('No JSON found in response');
+
+  const tryParse = (candidate) => {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      return null;
+    }
+  };
+
+  const fenceRegex = /```(?:json)?\s*([\s\S]*?)\s*```/gi;
+  for (const match of raw.matchAll(fenceRegex)) {
+    const parsed = tryParse(match[1]);
+    if (parsed) return parsed;
   }
-  const m = text.match(/\{[\s\S]*\}/);
-  if (!m) throw new Error('No JSON found in response');
-  return JSON.parse(m[0]);
+
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escape = false;
+  let lastCandidate = null;
+
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (ch === '\\' && inString) {
+      escape = true;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (ch === '{') {
+      if (depth === 0) start = i;
+      depth += 1;
+    } else if (ch === '}' && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start !== -1) {
+        const candidate = raw.slice(start, i + 1);
+        const parsed = tryParse(candidate);
+        if (parsed) return parsed;
+        lastCandidate = candidate;
+        start = -1;
+      }
+    }
+  }
+
+  if (lastCandidate) {
+    const parsed = tryParse(lastCandidate);
+    if (parsed) return parsed;
+  }
+
+  throw new Error('No JSON found in response');
 }
 
 // ─── Collect URLs from web_search_tool_result blocks ──────────────────────
