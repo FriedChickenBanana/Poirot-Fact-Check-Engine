@@ -1,3 +1,4 @@
+.env
 # Node.js backend
 backend/node_modules/
 backend/.env
