@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Poirot : Misinfo Detector",
-  "version": "1.0",
-  "description": "Fact-checking assistant using Claude and Tavily.",
+  "name": "Poirot: AI Fact-Check Engine",
+  "version": "2.0",
+  "description": "Multi-agent fact-checking AI with trust scoring and RAG.",
   "permissions": [
     "contextMenus",
     "storage",

@@ -1,137 +1,100 @@
+const crypto = require('crypto');
 const { buildImageBlock, extractJson } = require('../utils/helpers');
-const { extractImageInfo, searchAndVerdict } = require('../services/anthropicService');
+const { orchestrate } = require('../services/agentOrchestrator');
 const { getCached, setCached } = require('../services/cacheService');
-const { queryGoogleFactCheck } = require('../services/factCheckService');
+const { learnFromVerification } = require('../services/ragService');
+const { saveToGraph } = require('../services/graphRagService');
+const { computeTrustScore, updateSourceProfile } = require('../services/trustScoringService');
+const { logVerification } = require('../services/analyticsService');
 
 async function verifyFactCheck(req, res, next) {
   const t0 = Date.now();
   try {
-    const { type, content } = req.body;
-    if (!content) {
+    const { type, content, persona = 'General Public', base64 } = req.body;
+    if (!content && !base64) {
       return res.status(400).json({ verdict: 'Error', explanation: 'No content provided.' });
     }
+    // Image-only requests carry no text `content`. Use a safe string everywhere
+    // downstream so .substring()/.trim() never throw on undefined.
+    const safeContent = content || '';
 
-    // ── Step 0: Redis cache check ──────────────────────────────────────────
-    // For images, cache by srcUrl (content field); for text, cache by the text itself.
-    const cached = await getCached(type, content);
+    // ── Step 0: Cache check (Token Optimization) ────────────────────────
+    let cacheKey = safeContent;
+    if (type === 'image' && base64) {
+      // Hash the base64 to ensure we don't re-process the same image pixels
+      cacheKey = crypto.createHash('sha256').update(base64).digest('hex');
+    }
+    
+    const cached = await getCached(type, cacheKey);
     if (cached) {
       console.log(`[Cache HIT] ${Date.now() - t0}ms`);
       return res.json({ ...cached, cached: true });
     }
 
-    // ── Step 1: Parse image block ──────────────────────────────────────────
-    const imageBlock = type === 'image' ? buildImageBlock(req.body.base64) : null;
-    let extracted = null;
+    // ── Step 1: Build image block if needed ──────────────────────────────
+    const imageBlock = type === 'image' && base64 ? buildImageBlock(base64) : null;
+    const queryContent = content || 'image claim';
 
-    // ── Step 2: Extract image info ─────────────────────────────────────────
-    if (type === 'image' && imageBlock) {
-      try {
-        extracted = await extractImageInfo(imageBlock);
-        console.log(`[Extract] ${Date.now() - t0}ms`, JSON.stringify(extracted, null, 2));
-      } catch (e) {
-        console.error('[Extract] Failed:', e.message);
-      }
-    }
+    // ── Step 2: Multi-agent orchestration ──────────────────────────────
+    // The orchestrator now owns context retrieval (RAG + Google Fact Check +
+    // GraphRAG): it runs those lookups against the *extracted* claim after the
+    // vision/classify step, not the raw image URL, and skips them entirely on a
+    // satire short-circuit. See agentOrchestrator.orchestrate().
+    const result = await orchestrate({
+      type,
+      content: queryContent,
+      base64,
+      imageBlock,
+      persona,
+    });
 
-    // ── Early exit: Satirical / Meme content ──────────────────────────────
-    if (extracted?.is_satirical) {
-      const satiricalResult = {
-        verdict: 'Satirical',
-        confidence: 90,
-        explanation: `This appears to be satirical or meme content. ${extracted.satirical_reason || ''}`.trim(),
-        key_findings: ['Content identified as satire or humor, not a factual claim.'],
-        sources: []
-      };
-      await setCached(type, content, satiricalResult);
-      return res.json(satiricalResult);
-    }
+    // ── Step 6: Compute trust score ────────────────────────────────────
+    const claimHash = crypto.createHash('sha256').update(`${type}:${cacheKey.trim()}`).digest('hex');
+    const trustResult = await computeTrustScore({
+      sourceUrls: result.sources,
+      claimHash,
+      confidence: result.confidence,
+      verdict: result.verdict,
+    });
+    result.trust_score = trustResult.trust_score;
+    result.trust_breakdown = trustResult.breakdown;
 
-    // ── Step 3a: Determine Google Fact Check query ─────────────────────────
-    // Images: use the extracted key claim; text: use the raw content.
-    const factCheckQuery = extracted
-      ? (extracted.search_query || extracted.key_claim || content)
-      : content;
-
-    // ── Step 3b: Google Fact Check API lookup ─────────────────────────────
-    const existingFactChecks = await queryGoogleFactCheck(factCheckQuery);
-    if (existingFactChecks.length > 0) {
-      console.log(`[FactCheck] ${existingFactChecks.length} result(s) found`);
-    }
-
-    // ── Step 3c: Build fact-check context block ───────────────────────────
-    const factCheckSection = existingFactChecks.length > 0
-      ? '\n=== EXISTING FACT-CHECKS (Google Fact Check Tools) ===\n' +
-        existingFactChecks.map((fc, i) =>
-          `${i + 1}. Claim: "${fc.claim}" | Rating: ${fc.rating} | Source: ${fc.publisher} | URL: ${fc.url}`
-        ).join('\n') +
-        '\nUse these as grounding evidence alongside your web search.\n==='
-      : '';
-
-    // ── Step 3d: Build Claude prompt ──────────────────────────────────────
-    const promptParts = [];
-
-    const jsonOnlyInstructions = [
-      'To ensure accuracy, think through these steps silently before answering:',
-      '1. Identify the entities and core claim.',
-      '2. Evaluate the evidence from the search results.',
-      '3. Check for manipulation or missing context.',
-      'Return only a JSON object with this schema:',
-      '{',
-      '  "verdict": "Likely True" | "Likely False" | "Uncertain" | "Satirical",',
-      '  "confidence": 0-100,',
-      '  "explanation": "3-5 lines citing specific evidence from your web search.",',
-      '  "key_findings": ["finding 1", "finding 2"],',
-      '  "sources": ["url1", "url2"]',
-      '}',
-      'Do not include code fences or any extra text.'
-    ].join('\\n');
-
-    let promptText;
-    if (extracted) {
-      const lines = [
-        '=== IMAGE ANALYSIS ===',
-        `Visible Text (verbatim, preserve Bengali script): ${extracted.visible_text || 'None'}`,
-        `People: ${extracted.people || 'None'}`,
-        `Location: ${extracted.location || 'Unknown'}`,
-        `Date Clues: ${extracted.date_clues || 'None'}`,
-        `Tone: ${extracted.tone || 'Neutral'}`,
-        `Source Indicators: ${extracted.source || 'None'}`,
-        `Manipulation: ${extracted.manipulation || 'None detected'}`,
-        `Key Claim: ${extracted.key_claim || 'Unknown'}`,
-        factCheckSection,
-        '',
-        `Search the web using this query: "${extracted.search_query || extracted.key_claim}"`,
-        jsonOnlyInstructions
-      ];
-      promptText = lines.join('\\n');
-    } else if (imageBlock) {
-      // Fallback if extraction failed
-      promptParts.push(imageBlock);
-      promptText = `Fact-check this image. Search the web to verify it. ${jsonOnlyInstructions}`;
-    } else {
-      promptText = `Fact-check the following claim:\\n\\n"${content}"\\n\\nSearch the web to verify this claim.\\n${factCheckSection}\\n\\n${jsonOnlyInstructions}`;
-    }
-
-    promptParts.push({ type: 'text', text: promptText });
-
-    // ── Step 4: Web search + verdict ──────────────────────────────────────
-    const { text: rawVerdict, urls } = await searchAndVerdict(promptParts);
-    console.log(`[Done] ${Date.now() - t0}ms`);
-
-    // ── Parse result ───────────────────────────────────────────────────────
-    let result;
-    try {
-      result = extractJson(rawVerdict);
-    } catch {
-      result = { verdict: 'Uncertain', confidence: 0, explanation: 'Could not parse response.', key_findings: [], sources: [] };
-    }
-
-    if (!result.sources?.length) result.sources = urls.slice(0, 3);
-
-    // ── Step 5: Cache result in Redis ─────────────────────────────────────
-    await setCached(type, content, result);
-
+    // ── Step 7: Respond to the client NOW ──────────────────────────────
+    // Everything below (profile updates, self-learning, graph building,
+    // analytics logging, caching) is bookkeeping the caller does not wait on.
+    // Sending the response first cuts perceived latency by several DB writes.
+    const latencyMs = Date.now() - t0;
+    console.log(`[Done] ${latencyMs}ms | Tokens: ${result.tokens_used} | Agents: ${result.agents_used.join(',')}`);
     res.json(result);
+
+    // ── Step 8: Background persistence (fire-and-forget, never blocks) ──
+    Promise.allSettled([
+      updateSourceProfile(result.sources, result.verdict),
+      learnFromVerification(safeContent.substring(0, 500), result.verdict, result.sources),
+      setCached(type, cacheKey, result),
+      (result.verdict === 'Likely True' || result.verdict === 'Likely False')
+        ? saveToGraph(safeContent.substring(0, 1000), result.sources?.[0])
+        : Promise.resolve(),
+      logVerification({
+        claimType: type,
+        claimHash,
+        claimContent: safeContent.substring(0, 2000),
+        language: result.language,
+        verdict: result.verdict,
+        confidence: result.confidence,
+        trustScore: result.trust_score,
+        explanation: result.explanation,
+        keyFindings: result.key_findings,
+        sources: result.sources,
+        reasoningChain: result.reasoning_chain,
+        agentsUsed: result.agents_used,
+        tokensUsed: result.tokens_used,
+        latencyMs,
+      }),
+    ]).then(persisted => {
+      const failed = persisted.filter(p => p.status === 'rejected');
+      if (failed.length) console.warn(`[Persist] ${failed.length} background task(s) failed`);
+    });
 
   } catch (error) {
     next(error);

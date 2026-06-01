@@ -57,9 +57,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       }
     }
 
+    // Persona drives how the verdict is tailored (defaults to General Public).
+    const { persona = "General Public" } = await chrome.storage.sync.get({ persona: "General Public" });
+
     let payload;
     if (info.menuItemId === "verifyClaim") {
-      payload = { type: "text", content: info.selectionText };
+      payload = { type: "text", content: info.selectionText, persona };
     } else {
       try {
         const imgRes = await fetch(info.srcUrl);
@@ -74,10 +77,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         const base64 = btoa(binary);
         const mimeType = blob.type || 'image/jpeg';
         
-        payload = { type: "image", content: info.srcUrl, base64: `data:${mimeType};base64,${base64}` };
+        payload = { type: "image", content: info.srcUrl, base64: `data:${mimeType};base64,${base64}`, persona };
       } catch (err) {
         console.error("Failed to fetch image:", err);
-        payload = { type: "image", content: info.srcUrl };
+        payload = { type: "image", content: info.srcUrl, persona };
       }
     }
 

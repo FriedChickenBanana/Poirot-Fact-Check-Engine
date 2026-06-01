@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const backendUrlInput = document.getElementById('backend-url');
   const saveBackendUrlButton = document.getElementById('save-backend-url');
   const backendSaveStatus = document.getElementById('backend-save-status');
+  const personaSelect = document.getElementById('persona-select');
 
   const DEFAULT_BACKEND_BASE_URL = "http://localhost:3000";
 
@@ -26,19 +27,30 @@ document.addEventListener('DOMContentLoaded', () => {
       let badgeClass = "badge-uncertain";
       if (item.verdict?.toLowerCase().includes("true")) badgeClass = "badge-true";
       else if (item.verdict?.toLowerCase().includes("false")) badgeClass = "badge-false";
+      else if (item.verdict?.toLowerCase().includes("satir")) badgeClass = "badge-satirical";
 
       const date = new Date(item.timestamp).toLocaleString();
       const contentSnippet = item.type === 'text' 
         ? `"${item.content}"`
         : `[Image] ${item.content}`;
 
+      let metricsHtml = '';
+      if (item.confidence || item.trust_score) {
+        metricsHtml = `<div class="item-metrics">
+          ${item.confidence ? `Conf: ${item.confidence}%` : ''}
+          ${item.confidence && item.trust_score ? ' • ' : ''}
+          ${item.trust_score ? `Trust: ${item.trust_score}%` : ''}
+        </div>`;
+      }
+
       div.innerHTML = `
         <div class="item-header">
           <span class="item-badge ${badgeClass}">${item.verdict || "Uncertain"}</span>
           <span class="item-time">${date}</span>
         </div>
-        <div class="item-content" title="${item.content}">${contentSnippet}</div>
+        <div class="item-content" title="${item.content.replace(/"/g, '&quot;')}">${contentSnippet}</div>
         <div class="item-explanation">${item.explanation || ""}</div>
+        ${metricsHtml}
       `;
       historyList.appendChild(div);
     });
@@ -48,11 +60,19 @@ document.addEventListener('DOMContentLoaded', () => {
     backendUrlInput.value = normalizeBaseUrl(data.backendBaseUrl);
   });
 
+  // Persona is read by background.js on each verification; persist it immediately on change.
+  chrome.storage.sync.get({ persona: 'General Public' }, (data) => {
+    personaSelect.value = data.persona;
+  });
+  personaSelect.addEventListener('change', () => {
+    chrome.storage.sync.set({ persona: personaSelect.value });
+  });
+
   function saveBackendUrl() {
     const normalized = normalizeBaseUrl(backendUrlInput.value);
     chrome.storage.sync.set({ backendBaseUrl: normalized }, () => {
       backendUrlInput.value = normalized;
-      backendSaveStatus.textContent = "Saved";
+      backendSaveStatus.textContent = "Saved Successfully";
       setTimeout(() => {
         backendSaveStatus.textContent = "";
       }, 2000);

@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Poirot — AI Fact-Check Intelligence Platform</title>
+  <meta name="description" content="Poirot: AI-native fact-checking engine with multi-agent verification, trust scoring, and real-time misinformation analytics. Protecting information integrity globally.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- ═══ NAVIGATION ═══ -->
+  <nav class="nav" id="main-nav">
+    <div class="nav-inner">
+      <div class="nav-brand">
+        <span class="nav-logo">🔍</span>
+        <span class="nav-title">POIROT</span>
+        <span class="nav-badge">AI ENGINE</span>
+      </div>
+      <div class="nav-links">
+        <a href="#hero" class="nav-link active" data-section="hero">Home</a>
+        <a href="#verify" class="nav-link" data-section="verify">Verify</a>
+        <a href="#dashboard" class="nav-link" data-section="dashboard">Dashboard</a>
+        <a href="#sources" class="nav-link" data-section="sources">Sources</a>
+        <a href="#api-section" class="nav-link" data-section="api-section">API</a>
+      </div>
+      <div class="nav-actions">
+        <button class="btn-lang" id="lang-toggle" title="Switch language">EN | বাং</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══ HERO SECTION ═══ -->
+  <section class="hero" id="hero">
+    <div class="hero-bg-grid"></div>
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="pulse-dot"></span>
+        <span data-i18n="hero.badge">AI-Powered Fact Intelligence</span>
+      </div>
+      <h1 class="hero-title">
+        <span data-i18n="hero.title1">Verify Truth.</span><br>
+        <span class="gradient-text" data-i18n="hero.title2">Fight Misinformation.</span>
+      </h1>
+      <p class="hero-subtitle" data-i18n="hero.subtitle">
+        Multi-agent AI engine with trust scoring, knowledge graph reasoning, and real-time misinformation detection — built for Bangladesh, scalable globally.
+      </p>
+      <div class="hero-actions">
+        <a href="#verify" class="btn btn-primary btn-lg">
+          <span data-i18n="hero.cta1">Verify a Claim</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a href="#dashboard" class="btn btn-glass btn-lg">
+          <span data-i18n="hero.cta2">View Dashboard</span>
+        </a>
+      </div>
+      <div class="hero-stats" id="hero-stats">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-label" data-i18n="stats.total">Claims Verified</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-false">—</div>
+          <div class="stat-label" data-i18n="stats.false">Misinfo Detected</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-trust">—</div>
+          <div class="stat-label" data-i18n="stats.trust">Avg Trust Score</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-latency">—</div>
+          <div class="stat-label" data-i18n="stats.latency">Avg Response</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ARCHITECTURE SECTION ═══ -->
+  <section class="section" id="architecture">
+    <div class="container">
+      <h2 class="section-title" data-i18n="arch.title">Multi-Agent AI Architecture</h2>
+      <p class="section-subtitle" data-i18n="arch.subtitle">5 specialized AI agents work in concert to verify claims with maximum accuracy and minimum cost</p>
+      <div class="agent-pipeline">
+        <div class="agent-card">
+          <div class="agent-icon">🏷️</div>
+          <div class="agent-name">Classifier</div>
+          <div class="agent-model">Haiku 4.5</div>
+          <div class="agent-desc" data-i18n="arch.agent1">Language detection, satire check, claim categorization</div>
+          <div class="agent-cost">~$0.0002</div>
+        </div>
+        <div class="agent-arrow">→</div>
+        <div class="agent-card">
+          <div class="agent-icon">🖼️</div>
+          <div class="agent-name">Extractor</div>
+          <div class="agent-model">Haiku 4.5</div>
+          <div class="agent-desc" data-i18n="arch.agent2">Image analysis, text extraction, manipulation detection</div>
+          <div class="agent-cost">~$0.001</div>
+        </div>
+        <div class="agent-arrow">→</div>
+        <div class="agent-card">
+          <div class="agent-icon">🔬</div>
+          <div class="agent-name">Decomposer</div>
+          <div class="agent-model">Haiku 4.5</div>
+          <div class="agent-desc" data-i18n="arch.agent3">Breaks complex claims into atomic verifiable sub-claims</div>
+          <div class="agent-cost">~$0.0003</div>
+        </div>
+        <div class="agent-arrow">→</div>
+        <div class="agent-card agent-card-primary">
+          <div class="agent-icon">⚖️</div>
+          <div class="agent-name">Verdict Engine</div>
+          <div class="agent-model">Sonnet 4.6</div>
+          <div class="agent-desc" data-i18n="arch.agent4">Web search + RAG + evidence synthesis → final verdict + inline bias flags</div>
+          <div class="agent-cost">~$0.02</div>
+        </div>
+        <div class="agent-arrow">→</div>
+        <div class="agent-card">
+          <div class="agent-icon">⚠️</div>
+          <div class="agent-name">Bias Detector</div>
+          <div class="agent-model">Verdict-inline</div>
+          <div class="agent-desc" data-i18n="arch.agent5">Source bias analysis, framing detection, transparency flags — produced inline by the Verdict Engine</div>
+          <div class="agent-cost">Included</div>
+        </div>
+      </div>
+      <div class="arch-extras">
+        <div class="arch-extra-card">
+          <div class="arch-extra-icon">🧠</div>
+          <h3>RAG Knowledge Base</h3>
+          <p>PGVector-powered semantic search over verified facts, known misinfo patterns, and source profiles</p>
+        </div>
+        <div class="arch-extra-card">
+          <div class="arch-extra-icon">🕸️</div>
+          <h3>Trust Graph</h3>
+          <p>PostgreSQL-based credibility graph with source profiles, claim relationships, and PageRank-style trust scoring</p>
+        </div>
+        <div class="arch-extra-card">
+          <div class="arch-extra-icon">💰</div>
+          <h3>Token Optimization</h3>
+          <p>~70% cost reduction vs single-model approach. Haiku handles 4 of 5 agents; Sonnet only for final verdict</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ VERIFY SECTION ═══ -->
+  <section class="section section-dark" id="verify">
+    <div class="container">
+      <h2 class="section-title" data-i18n="verify.title">Verify a Claim</h2>
+      <p class="section-subtitle" data-i18n="verify.subtitle">Paste any text claim or image URL to run through our multi-agent verification pipeline</p>
+      
+      <div class="verify-container">
+        <div class="verify-input-area">
+          <div class="verify-tabs" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <button class="verify-tab active" data-type="text" data-i18n="verify.text">Text Claim</button>
+              <button class="verify-tab" data-type="image" data-i18n="verify.image">Image URL</button>
+            </div>
+            <div class="persona-select-container" style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:12px; color:var(--text-muted);">Persona:</span>
+              <select id="persona-select" style="background:var(--card-bg); border:1px solid var(--border-color); color:var(--text-light); padding:4px 8px; border-radius:4px; font-size:12px; font-family:Inter;">
+                <option value="General Public">General Public</option>
+                <option value="Youth/Student">Youth / Student</option>
+                <option value="Journalist">Journalist</option>
+              </select>
+            </div>
+          </div>
+          <textarea id="verify-input" class="verify-textarea" placeholder="Paste a claim to fact-check..." rows="4"></textarea>
+          <div class="verify-actions">
+            <button id="verify-submit" class="btn btn-primary">
+              <span data-i18n="verify.btn">Verify with Poirot</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </button>
+            <span class="verify-hint" data-i18n="verify.hint">Powered by 5 AI agents • RAG • Trust Graph</span>
+          </div>
+        </div>
+
+        <div class="verify-result" id="verify-result" style="display:none;">
+          <div class="result-header">
+            <div class="result-verdict" id="result-verdict">—</div>
+            <div class="result-scores">
+              <div class="result-score">
+                <span class="score-label" data-i18n="verify.confidence">Confidence</span>
+                <span class="score-value" id="result-confidence">—</span>
+              </div>
+              <div class="result-score">
+                <span class="score-label" data-i18n="verify.trust">Trust Score</span>
+                <span class="score-value" id="result-trust">—</span>
+              </div>
+            </div>
+          </div>
+          <div class="result-explanation" id="result-explanation"></div>
+          
+          <div class="literacy-tip" id="literacy-tip" style="display:none; background:rgba(34, 197, 94, 0.1); border-left:4px solid #22c55e; padding:12px; margin:16px 0; border-radius:4px;">
+            <strong style="color:#22c55e; font-size:13px; text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:4px;">💡 Digital Literacy Tip</strong>
+            <span id="literacy-tip-text" style="font-size:14px; color:var(--text-light);"></span>
+          </div>
+
+          <div class="forensics-box" id="forensics-box" style="display:none; background:rgba(168, 85, 247, 0.1); border-left:4px solid #a855f7; padding:12px; margin:16px 0; border-radius:4px;">
+            <strong style="color:#a855f7; font-size:13px; text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:4px;">📸 Image Forensics</strong>
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+              <span style="font-size:14px; color:var(--text-light);">Deepfake Probability:</span>
+              <strong id="forensics-prob" style="color:#a855f7;">—</strong>
+            </div>
+            <div id="forensics-flags" style="font-size:13px; color:var(--text-muted);"></div>
+          </div>
+
+          <div class="result-findings" id="result-findings"></div>
+          <div class="result-sources" id="result-sources"></div>
+          <div class="result-meta" id="result-meta"></div>
+        </div>
+
+        <div class="verify-loading" id="verify-loading" style="display:none;">
+          <div class="loading-spinner"></div>
+          <div class="loading-text" data-i18n="verify.loading">Agents analyzing claim...</div>
+          <div class="loading-agents" id="loading-agents"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ DASHBOARD SECTION ═══ -->
+  <section class="section" id="dashboard">
+    <div class="container">
+      <h2 class="section-title" data-i18n="dash.title">Real-Time Intelligence Dashboard</h2>
+      <p class="section-subtitle" data-i18n="dash.subtitle">Live analytics on misinformation trends, verification patterns, and trust metrics</p>
+
+      <div class="dashboard-grid">
+        <div class="dash-card dash-card-lg">
+          <h3 class="dash-card-title" data-i18n="dash.verdicts">Verdict Distribution</h3>
+          <canvas id="chart-verdicts" height="250"></canvas>
+        </div>
+        <div class="dash-card dash-card-lg">
+          <h3 class="dash-card-title" data-i18n="dash.trends">Daily Verification Trends</h3>
+          <canvas id="chart-trends" height="250"></canvas>
+        </div>
+      </div>
+
+      <h3 class="subsection-title" data-i18n="dash.recent">Recent Verifications</h3>
+      <div class="table-container">
+        <table class="data-table" id="recent-table">
+          <thead>
+            <tr>
+              <th data-i18n="table.type">Type</th>
+              <th data-i18n="table.claim">Claim</th>
+              <th data-i18n="table.verdict">Verdict</th>
+              <th data-i18n="table.confidence">Confidence</th>
+              <th data-i18n="table.trust">Trust</th>
+              <th data-i18n="table.agents">Agents</th>
+              <th data-i18n="table.time">Time</th>
+            </tr>
+          </thead>
+          <tbody id="recent-tbody">
+            <tr><td colspan="7" class="table-empty" data-i18n="table.empty">Loading verifications...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="subsection-title" data-i18n="dash.misinfo">Top Misinformation Detected</h3>
+      <div id="misinfo-list" class="misinfo-list"></div>
+    </div>
+  </section>
+
+  <!-- ═══ SOURCE CREDIBILITY SECTION ═══ -->
+  <section class="section section-dark" id="sources">
+    <div class="container">
+      <h2 class="section-title" data-i18n="sources.title">Source Credibility Leaderboard</h2>
+      <p class="section-subtitle" data-i18n="sources.subtitle">Trust scores computed from verification history, cross-references, and editorial standards</p>
+      <div class="table-container">
+        <table class="data-table" id="sources-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th data-i18n="sources.domain">Source</th>
+              <th data-i18n="sources.category">Category</th>
+              <th data-i18n="sources.bias">Bias</th>
+              <th data-i18n="sources.score">Credibility</th>
+              <th data-i18n="sources.checks">Checks</th>
+            </tr>
+          </thead>
+          <tbody id="sources-tbody">
+            <tr><td colspan="6" class="table-empty" data-i18n="table.loading">Loading sources...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ API SECTION ═══ -->
+  <section class="section" id="api-section">
+    <div class="container">
+      <h2 class="section-title" data-i18n="api.title">Enterprise API</h2>
+      <p class="section-subtitle" data-i18n="api.subtitle">Integrate Poirot's fact-checking intelligence into your platform</p>
+
+      <div class="api-grid">
+        <div class="api-tier">
+          <div class="api-tier-name">Free</div>
+          <div class="api-tier-price">$0<span>/mo</span></div>
+          <ul class="api-tier-features">
+            <li>100 verifications/day</li>
+            <li>Text claims only</li>
+            <li>Standard latency</li>
+            <li>Community support</li>
+          </ul>
+        </div>
+        <div class="api-tier api-tier-featured">
+          <div class="api-tier-badge">POPULAR</div>
+          <div class="api-tier-name">Pro</div>
+          <div class="api-tier-price">$49<span>/mo</span></div>
+          <ul class="api-tier-features">
+            <li>10,000 verifications/day</li>
+            <li>Text + Image claims</li>
+            <li>Batch verification API</li>
+            <li>Trust score API</li>
+            <li>Priority support</li>
+          </ul>
+        </div>
+        <div class="api-tier">
+          <div class="api-tier-name">Enterprise</div>
+          <div class="api-tier-price">Custom</div>
+          <ul class="api-tier-features">
+            <li>Unlimited verifications</li>
+            <li>Custom model fine-tuning</li>
+            <li>On-premise deployment</li>
+            <li>SLA guarantee</li>
+            <li>Dedicated support</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="api-docs-preview">
+        <h3>Quick Start</h3>
+        <pre class="code-block"><code>curl -X POST https://poirot-api.onrender.com/api/v1/verify \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -d '{"type": "text", "content": "Bangladesh won the 2025 Cricket World Cup"}'</code></pre>
+        <h3>Response</h3>
+        <pre class="code-block"><code>{
+  "verdict": "Likely False",
+  "confidence": 92,
+  "trust_score": 78,
+  "explanation": "No evidence supports this claim...",
+  "key_findings": ["Australia won the 2025 CWC"],
+  "sources": ["https://espncricinfo.com/..."],
+  "agents_used": ["classifier", "verdict_synthesizer", "bias_detector"],
+  "tokens_used": 1847,
+  "bias_flags": []
+}</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="nav-brand">
+            <span class="nav-logo">🔍</span>
+            <span class="nav-title">POIROT</span>
+          </div>
+          <p data-i18n="footer.desc">AI-native fact-checking engine built for Bangladesh, scalable globally. Protecting information integrity through multi-agent intelligence.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="#verify">Verify Claims</a>
+          <a href="#dashboard">Dashboard</a>
+          <a href="#sources">Source Trust</a>
+          <a href="#api-section">API</a>
+        </div>
+        <div class="footer-col">
+          <h4>Technology</h4>
+          <a href="#architecture">AI Architecture</a>
+          <p>Claude AI (Anthropic)</p>
+          <p>PGVector RAG</p>
+          <p>Trust Graph</p>
+        </div>
+        <div class="footer-col">
+          <h4>Built For</h4>
+          <p>The Infinity AI BuildFest 2026</p>
+          <p>Track 5 — InfoTech</p>
+          <p>Fact-Checking Engine</p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2026 Poirot AI — Built with 🇧🇩 for the world</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

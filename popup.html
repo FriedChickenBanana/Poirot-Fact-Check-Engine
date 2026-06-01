@@ -2,25 +2,34 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="header">
-    <h1>Misinfo Detector</h1>
+    <span class="header-icon">🔍</span>
+    <h1 class="header-title">POIROT</h1>
+    <span class="header-badge">AI</span>
   </div>
   
   <div class="content" id="history-container">
-    <div id="no-history">No recent checks found.</div>
+    <div id="no-history">No recent fact-checks found. Select text or right-click an image to verify.</div>
     <div id="history-list"></div>
 
     <div class="settings">
-      <div class="settings-title">Backend URL</div>
+      <div class="settings-title">Persona</div>
+      <select id="persona-select">
+        <option value="General Public">General Public</option>
+        <option value="Youth/Student">Youth / Student</option>
+        <option value="Journalist">Journalist</option>
+      </select>
+
+      <div class="settings-title" style="margin-top:12px;">Backend API URL</div>
       <input id="backend-url" type="text" placeholder="http://localhost:3000" autocomplete="off" />
       <div class="settings-actions">
-        <button id="save-backend-url" type="button">Save</button>
         <span id="backend-save-status" class="settings-status"></span>
+        <button id="save-backend-url" type="button">Save Config</button>
       </div>
-      <div class="settings-help">Paste your ngrok HTTPS forwarding URL here.</div>
     </div>
   </div>
 
