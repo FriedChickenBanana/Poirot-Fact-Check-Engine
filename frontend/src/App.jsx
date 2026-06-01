@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
+import { I18N, t, normalizeVerdictCode, speakVerdict, isSocialMediaLink, isValidUrl } from './i18n'
 
 const DEFAULT_BACKEND_BASE_URL = 'http://localhost:3000'
+const DEFAULT_LANGUAGE_MODE = 'auto'
 
 function normalizeBaseUrl(value) {
   const trimmed = (value || '').trim()
@@ -11,6 +13,12 @@ function normalizeBaseUrl(value) {
 function buildBackendUrl(baseUrl, path) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
   return `${baseUrl}${normalizedPath}`
+}
+
+function resolveUiLanguage(mode) {
+  if (mode === 'bn' || mode === 'en') return mode
+  const browserLang = (navigator.language || 'en').toLowerCase()
+  return browserLang.startsWith('bn') ? 'bn' : 'en'
 }
 
 function verdictTone(verdict) {
@@ -32,6 +40,7 @@ async function fileToBase64(file) {
 }
 
 function App() {
+  const [languageMode, setLanguageMode] = useState(DEFAULT_LANGUAGE_MODE)
   const [draft, setDraft] = useState('')
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState('')
@@ -41,11 +50,11 @@ function App() {
       id: 'intro',
       role: 'assistant',
       type: 'system',
-      content:
-        'Provide a claim or upload an image. Poirot will return a verdict with supporting sources.'
+      content: t(resolveUiLanguage(languageMode), 'enterClaimOrImage')
     }
   ])
   const fileInputRef = useRef(null)
+  const uiLanguage = resolveUiLanguage(languageMode)
 
   const backendBaseUrl = useMemo(() => {
     return normalizeBaseUrl(import.meta.env.VITE_BACKEND_BASE_URL)
@@ -86,13 +95,23 @@ function App() {
     if (!canSubmit || isSubmitting) return
 
     const isImage = Boolean(imageFile)
-    const content = isImage ? imageFile.name : draft.trim()
+    let content = isImage ? imageFile.name : draft.trim()
+    let isSocialLink = false
+    let linkUrl = ''
+
+    if (!isImage && isValidUrl(content)) {
+      isSocialLink = isSocialMediaLink(content)
+      if (isSocialLink) {
+        linkUrl = content
+      }
+    }
+
     const preview = imagePreview
 
     pushMessage({
       id: crypto.randomUUID(),
       role: 'user',
-      type: isImage ? 'image' : 'text',
+      type: isImage ? 'image' : isSocialLink ? 'social-link' : 'text',
       content,
       imagePreview: preview
     })
@@ -101,7 +120,7 @@ function App() {
       id: crypto.randomUUID(),
       role: 'assistant',
       type: 'loading',
-      content: 'Analyzing...'
+      content: isSocialLink ? t(uiLanguage, 'extractingContent') : t(uiLanguage, 'analyzing')
     })
 
     setIsSubmitting(true)
@@ -111,12 +130,21 @@ function App() {
         payload = {
           type: 'image',
           content: content || 'uploaded image',
-          base64: preview
+          base64: preview,
+          language: uiLanguage
+        }
+      } else if (isSocialLink) {
+        payload = {
+          type: 'social-media',
+          content: linkUrl,
+          url: linkUrl,
+          language: uiLanguage
         }
       } else {
         payload = {
           type: 'text',
-          content: content
+          content: content,
+          language: uiLanguage
         }
       }
 
@@ -131,23 +159,27 @@ function App() {
       }
 
       const result = await response.json()
+      const verdictCode = normalizeVerdictCode(result.verdict)
+      
       replaceLastMessage({
         id: crypto.randomUUID(),
         role: 'assistant',
         type: 'result',
-        verdict: result.verdict || 'Uncertain',
+        verdict: result.verdict || t(uiLanguage, 'verdictUncertain'),
+        verdict_code: verdictCode,
         confidence: result.confidence,
-        explanation: result.explanation || 'No explanation provided.',
+        explanation: result.explanation || t(uiLanguage, 'noExplanation'),
         sources: result.sources || [],
-        keyFindings: result.key_findings || []
+        keyFindings: result.key_findings || [],
+        isSocialLink
       })
     } catch (error) {
       replaceLastMessage({
         id: crypto.randomUUID(),
         role: 'assistant',
         type: 'error',
-        verdict: 'Error',
-        explanation: error.message || 'Unable to reach the backend.'
+        verdict: t(uiLanguage, 'error'),
+        explanation: error.message || t(uiLanguage, 'failedToExtract')
       })
     } finally {
       setIsSubmitting(false)
@@ -169,12 +201,25 @@ function App() {
                 Poirot
               </p>
               <h1 className="text-2xl font-semibold tracking-tight">
-                Poirot : Fact Checking Engine
+                {t(uiLanguage, 'title')}
               </h1>
             </div>
           </div>
-          <div className="text-left text-xs uppercase tracking-[0.3em] text-white/60 md:text-right">
-            Live demo · Black/White Protocol
+          <div className="flex flex-col gap-3 md:items-end">
+            <div className="text-left text-xs uppercase tracking-[0.3em] text-white/60">
+              {t(uiLanguage, 'subtitle')}
+            </div>
+            <div className="flex gap-3 flex-wrap">
+              <select
+                value={languageMode}
+                onChange={(e) => setLanguageMode(e.target.value)}
+                className="border border-white/30 bg-black px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white"
+              >
+                <option value="auto">{t(uiLanguage, 'languageAuto')}</option>
+                <option value="en">{t(uiLanguage, 'languageEnglish')}</option>
+                <option value="bn">{t(uiLanguage, 'languageBangla')}</option>
+              </select>
+            </div>
           </div>
         </div>
       </header>
@@ -182,8 +227,8 @@ function App() {
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
         <section className="border border-white/15 bg-black/70">
           <div className="flex flex-col gap-2 border-b border-white/15 px-4 py-3 text-xs uppercase tracking-[0.25em] text-white/60 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-            <span>Verification Console</span>
-            <span>Active</span>
+            <span>{t(uiLanguage, 'consoleTitle')}</span>
+            <span>{t(uiLanguage, 'consoleStatus')}</span>
           </div>
 
           <div className="flex min-h-[50vh] flex-col gap-4 px-4 py-5 sm:min-h-[56vh] sm:px-5 sm:py-6">
@@ -216,6 +261,15 @@ function App() {
 
                     {message.type === 'text' && <p>{message.content}</p>}
 
+                    {message.type === 'social-link' && (
+                      <div className="flex flex-col gap-2">
+                        <div className="text-xs uppercase tracking-[0.25em] text-white/70">
+                          {t(uiLanguage, 'linkVerification')}
+                        </div>
+                        <p className="text-sm break-all">{message.content}</p>
+                      </div>
+                    )}
+
                     {message.type === 'image' && (
                       <div className="flex flex-col gap-3">
                         <div className="text-xs uppercase tracking-[0.25em] text-white/70">
@@ -234,25 +288,35 @@ function App() {
 
                     {message.type === 'result' && (
                       <div className="flex flex-col gap-3">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <span
-                            className={`text-xs font-semibold uppercase tracking-[0.3em] ${verdictTone(
-                              message.verdict
-                            )}`}
-                          >
-                            Verdict: {message.verdict}
-                          </span>
-                          {message.confidence && (
-                            <span className="text-xs uppercase tracking-[0.25em] text-white/60">
-                              Confidence {message.confidence}%
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span
+                              className={`text-xs font-semibold uppercase tracking-[0.3em] ${verdictTone(
+                                message.verdict
+                              )}`}
+                            >
+                              {t(uiLanguage, 'verdict')}: {message.verdict}
                             </span>
-                          )}
+                            {message.confidence && (
+                              <span className="text-xs uppercase tracking-[0.25em] text-white/60">
+                                {t(uiLanguage, 'confidence')} {message.confidence}%
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => speakVerdict(uiLanguage, message.verdict_code)}
+                            className="border border-white/30 bg-black px-2 py-1 text-xs font-semibold uppercase tracking-[0.2em] hover:border-white"
+                            title={t(uiLanguage, 'speak')}
+                          >
+                            🔊
+                          </button>
                         </div>
                         <p className="text-sm text-white/80">{message.explanation}</p>
                         {message.keyFindings?.length > 0 && (
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-white/60">
-                              Key Findings
+                              {t(uiLanguage, 'keyFindings')}
                             </p>
                             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-white/80">
                               {message.keyFindings.map((finding) => (
@@ -264,7 +328,7 @@ function App() {
                         {message.sources?.length > 0 && (
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-white/60">
-                              Sources
+                              {t(uiLanguage, 'sources')}
                             </p>
                             <ul className="mt-2 space-y-1 text-xs uppercase tracking-[0.2em]">
                               {message.sources.map((source) => (
@@ -308,7 +372,7 @@ function App() {
               <textarea
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                placeholder="Paste a claim to verify."
+                placeholder={t(uiLanguage, 'placeholderClaim')}
                 rows={3}
                 className="w-full resize-none border border-white/20 bg-black px-4 py-3 text-sm text-white outline-none focus:border-white"
               />
@@ -341,14 +405,14 @@ function App() {
                   onClick={() => fileInputRef.current?.click()}
                   className="border border-white/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em]"
                 >
-                  Attach image
+                  {t(uiLanguage, 'uploadImage')}
                 </button>
                 <button
                   type="submit"
                   disabled={!canSubmit || isSubmitting}
                   className="border border-white px-6 py-2 text-xs font-semibold uppercase tracking-[0.3em] disabled:border-white/20 disabled:text-white/40"
                 >
-                  {isSubmitting ? 'Running' : 'Verify'}
+                  {isSubmitting ? 'Running' : t(uiLanguage, 'submit')}
                 </button>
                 <span className="text-xs uppercase tracking-[0.2em] text-white/50">
                   Backend: {backendBaseUrl}

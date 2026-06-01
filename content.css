@@ -37,11 +37,13 @@
 #misinfo-detector-ui .misinfo-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
   margin-top: 4px;
   border-bottom: 2px solid #ffffff;
   padding-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 #misinfo-detector-ui .misinfo-badge {
@@ -94,14 +96,15 @@
 }
 
 #misinfo-detector-ui .misinfo-speak {
-  margin-left: auto;
   background: #000000;
   color: #ffffff;
   border: 2px solid #ffffff;
-  padding: 4px 6px;
-  font-size: 12px;
+  padding: 4px 8px;
+  font-size: 14px;
   cursor: pointer;
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: Arial, sans-serif;
+  min-width: 32px;
+  text-align: center;
 }
 
 #misinfo-detector-ui .misinfo-speak:hover {

@@ -2,6 +2,7 @@ const { buildImageBlock, extractJson } = require('../utils/helpers');
 const { extractImageInfo, searchAndVerdict } = require('../services/anthropicService');
 const { getCached, setCached } = require('../services/cacheService');
 const { queryGoogleFactCheck } = require('../services/factCheckService');
+const { extractFromSocialMedia } = require('../services/socialMediaService');
 
 const LANGUAGE_TEXT = {
   en: {
@@ -46,6 +47,11 @@ function isBanglaText(text) {
   const hasLatin = /[A-Za-z]/.test(value);
   if (hasLatin && !hasBengali) return false;
   return true;
+}
+
+function isSocialMediaLink(text) {
+  const socialRegex = /(?:https?:\/\/)?(?:www\.)?(?:twitter\.com|x\.com|facebook\.com|instagram\.com|tiktok\.com|youtube\.com|linkedin\.com|reddit\.com|threads\.net)\//i;
+  return socialRegex.test(text || '');
 }
 
 function enforceBanglaOutput(result, languageText) {
@@ -94,10 +100,26 @@ function buildJsonOnlyInstructions(language) {
 async function verifyFactCheck(req, res, next) {
   const t0 = Date.now();
   try {
-    const { type, content } = req.body;
+    let { type, content } = req.body;
     const language = normalizeLanguage(req.body.language || req.body.uiLanguage);
     const lowBandwidth = Boolean(req.body.lowBandwidth);
     const languageText = LANGUAGE_TEXT[language];
+
+    // Handle social media links
+    if (type === 'social-media' || (type === 'text' && isSocialMediaLink(content))) {
+      const socialUrl = req.body.url || content;
+      const extractedText = await extractFromSocialMedia(socialUrl);
+      if (extractedText) {
+        content = extractedText;
+        type = 'text';
+      } else {
+        return res.status(400).json({
+          verdict: 'Error',
+          verdict_code: 'error',
+          explanation: languageText.parseError
+        });
+      }
+    }
 
     if (!content) {
       return res.status(400).json({
