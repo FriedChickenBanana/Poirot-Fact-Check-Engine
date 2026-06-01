@@ -161,8 +161,11 @@ function createOrUpdatePopup(data) {
 
   content.innerHTML = `
     <div class="misinfo-header">
-      <span class="misinfo-badge ${badgeClass}">${verdictLabel}</span>
-      ${data.confidence !== undefined && data.confidence !== null ? `<span class="misinfo-confidence">${formatConfidence(uiLanguage, data.confidence)}</span>` : ''}
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span class="misinfo-badge ${badgeClass}">${verdictLabel}</span>
+        ${data.confidence !== undefined && data.confidence !== null ? `<span class="misinfo-confidence">${formatConfidence(uiLanguage, data.confidence)}</span>` : ''}
+      </div>
+      ${!data.loading ? `<button class="misinfo-speak" id="misinfo-speak" aria-label="${t(uiLanguage, "speak")}" title="${t(uiLanguage, "speak")}">🔊</button>` : ''}
     </div>
     <p class="misinfo-explanation">${data.explanation || ""}</p>
     ${findingsHtml}
