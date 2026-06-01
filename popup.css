@@ -81,6 +81,8 @@ body {
 .badge-true { background-color: #000000; color: #00ff00; border-color: #00ff00; }
 .badge-false { background-color: #000000; color: #ff0000; border-color: #ff0000; }
 .badge-uncertain { background-color: #000000; color: #ffff00; border-color: #ffff00; }
+.badge-satirical { background-color: #000000; color: #ffffff; border-color: #ffffff; }
+.badge-error { background-color: #000000; color: #888888; border-color: #888888; }
 
 .item-content {
   font-size: 15px;
@@ -110,6 +112,47 @@ body {
   letter-spacing: 1px;
   margin-bottom: 8px;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.settings-subtitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 14px 0 6px 0;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.settings-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 10px 0 6px 0;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.settings-select {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #000000;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  padding: 8px;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 12px;
+}
+
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 6px 0;
+  font-size: 12px;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.settings-toggle input {
+  accent-color: #ffffff;
 }
 
 #backend-url {

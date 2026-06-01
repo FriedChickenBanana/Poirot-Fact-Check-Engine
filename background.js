@@ -1,4 +1,6 @@
 const DEFAULT_BACKEND_BASE_URL = "http://localhost:3000";
+const DEFAULT_LANGUAGE_MODE = "auto";
+const DEFAULT_LOW_BANDWIDTH = false;
 
 function normalizeBaseUrl(value) {
   const trimmed = (value || "").trim();
@@ -13,6 +15,46 @@ function getBackendBaseUrl() {
       (data) => resolve(normalizeBaseUrl(data.backendBaseUrl))
     );
   });
+}
+
+function getUserSettings() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(
+      {
+        backendBaseUrl: DEFAULT_BACKEND_BASE_URL,
+        languageMode: DEFAULT_LANGUAGE_MODE,
+        lowBandwidth: DEFAULT_LOW_BANDWIDTH
+      },
+      (data) => {
+        resolve({
+          baseUrl: normalizeBaseUrl(data.backendBaseUrl),
+          languageMode: data.languageMode || DEFAULT_LANGUAGE_MODE,
+          lowBandwidth: Boolean(data.lowBandwidth)
+        });
+      }
+    );
+  });
+}
+
+function containsBengali(text) {
+  return /[\u0980-\u09FF]/.test(text || "");
+}
+
+function detectTabLanguage(tabId) {
+  return new Promise((resolve) => {
+    if (!chrome.tabs || !chrome.tabs.detectLanguage) return resolve("en");
+    chrome.tabs.detectLanguage(tabId, (lang) => {
+      if (chrome.runtime.lastError) return resolve("en");
+      resolve(lang || "en");
+    });
+  });
+}
+
+async function resolveUiLanguage(languageMode, sampleText, tabId) {
+  if (languageMode === "bn" || languageMode === "en") return languageMode;
+  if (containsBengali(sampleText)) return "bn";
+  const tabLang = await detectTabLanguage(tabId);
+  return (tabLang || "").toLowerCase().startsWith("bn") ? "bn" : "en";
 }
 
 function buildBackendUrl(baseUrl, path) {
@@ -42,15 +84,27 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       return;
     }
 
+    const { baseUrl, languageMode, lowBandwidth } = await getUserSettings();
+
     // Show loading UI, inject scripts dynamically if they are missing (common after extension reload)
+    let uiLanguage = "en";
     try {
-      await chrome.tabs.sendMessage(tab.id, { action: "showLoading" });
+      uiLanguage = await resolveUiLanguage(languageMode, info.selectionText, tab.id);
+      await chrome.tabs.sendMessage(tab.id, {
+        action: "showLoading",
+        uiLanguage,
+        lowBandwidth
+      });
     } catch (e) {
       console.warn("Content script disconnected or missing. Injecting dynamically...", e);
       try {
         await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["content.css"] });
         await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
-        await chrome.tabs.sendMessage(tab.id, { action: "showLoading" });
+        await chrome.tabs.sendMessage(tab.id, {
+          action: "showLoading",
+          uiLanguage,
+          lowBandwidth
+        });
       } catch (injectionError) {
         console.error("Failed to inject UI:", injectionError);
         return; // Abort if we literally can't show the UI
@@ -81,8 +135,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       }
     }
 
+    payload.language = uiLanguage;
+    payload.uiLanguage = uiLanguage;
+    payload.lowBandwidth = lowBandwidth;
+
     try {
-      const baseUrl = await getBackendBaseUrl();
       const response = await fetch(buildBackendUrl(baseUrl, "/verify"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -101,6 +158,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         action: "showResult", 
         result: {
           ...result,
+          uiLanguage,
+          lowBandwidth,
           originalType: payload.type,
           originalContent: payload.content,
           originalBase64: payload.base64
@@ -110,7 +169,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       console.error(error);
       chrome.tabs.sendMessage(tab.id, { 
         action: "showResult", 
-        result: { verdict: "Error", explanation: "Failed to connect to backend.", sources: [] }
+        result: {
+          verdict: "Error",
+          verdict_code: "error",
+          explanation: "Failed to connect to backend.",
+          sources: [],
+          uiLanguage,
+          lowBandwidth
+        }
       }).catch(e => console.error(e));
     }
   }
