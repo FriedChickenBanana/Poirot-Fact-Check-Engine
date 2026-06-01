@@ -43,13 +43,21 @@ Analyze the image and return ONLY valid JSON with no extra text:
 // Iteration 1: Claude sees context → calls web_search tool ONCE
 // Iteration 2: Claude reads results → outputs final JSON verdict
 // ══════════════════════════════════════════════════════════════════════════
-const VERDICT_SYSTEM = `You are a strict fact-checker for Bangladeshi and global news. Be precise and conservative.
+function buildVerdictSystem(language) {
+  const languageLine = language === 'bn'
+    ? 'Write the explanation and key_findings only in Bangla (বাংলা). Do not use English except proper nouns or URLs.'
+    : 'Write the explanation and key_findings in English.';
+
+  return `You are a strict fact-checker for Bangladeshi and global news. Be precise and conservative.
+
+${languageLine}
+Use verdict values exactly as listed in English.
 
 IMPORTANT: Do exactly ONE web search, then immediately output your JSON verdict. Do NOT search again.
 
 After searching, output ONLY valid JSON with no extra text:
 {
-  "verdict": "Likely True" | "Likely False" | "Uncertain",
+  "verdict": "Likely True" | "Likely False" | "Uncertain" | "Satirical",
   "confidence": 0-100,
   "explanation": "3-5 lines citing specific evidence from your web search. Be factual.",
   "key_findings": ["concrete finding 1", "concrete finding 2"],
@@ -59,9 +67,12 @@ After searching, output ONLY valid JSON with no extra text:
 Rules:
 - "Likely True"  → Claim confirmed by reliable sources in your search results.
 - "Likely False" → Claim is contradicted, image is reused/out-of-context, or fabricated.
-- "Uncertain"    → Evidence is insufficient or conflicting. Never guess.`;
+- "Uncertain"    → Evidence is insufficient or conflicting. Never guess.
+- "Satirical"    → Content is clearly satire or parody, not a factual claim.`;
+}
 
-async function searchAndVerdict(userContent) {
+async function searchAndVerdict(userContent, options = {}) {
+  const language = options.language === 'bn' ? 'bn' : 'en';
   const messages = [{ role: 'user', content: userContent }];
   let collectedUrls = [];
 
@@ -70,7 +81,7 @@ async function searchAndVerdict(userContent) {
     const response = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 900,
-      system: VERDICT_SYSTEM,
+      system: buildVerdictSystem(language),
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       // On the final iteration force text output — prevents Claude from searching
       // again instead of writing its verdict, which would leave text empty.
@@ -105,6 +116,7 @@ async function searchAndVerdict(userContent) {
 
   return { text: '', urls: collectedUrls };
 }
+
 
 module.exports = {
   extractImageInfo,

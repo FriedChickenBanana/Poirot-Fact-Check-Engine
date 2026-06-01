@@ -1,0 +1,108 @@
+Top 10 Mistakes Teams Make (and How to Avoid Them)
+This section highlights the most common pitfalls observed in AI build competitions and real startup environments. Avoiding these mistakes can significantly improve your chances of building a high-impact, production-ready solution.
+#
+Common Mistake
+What It Looks Like
+Why It Hurts
+How to Avoid (Prescription)
+1
+Using AI as a gimmick
+Adding a chatbot without real intelligence or impact
+Judges see superficial AI use; low technical score
+Start with the problem → define where AI is essential → design the AI core first
+2
+No clear problem definition
+Vague or overly broad idea
+Hard to evaluate impact or value
+Define: Who is the user? What pain? Why now? Add measurable KPIs
+3
+Weak architecture thinking
+No clear flow (input → AI → output)
+System cannot scale or be explained
+Draw architecture early using Cursor/MD files; keep it modular
+4
+Ignoring real data
+Fake or hardcoded data
+No credibility, no real-world value
+Use scrapers/APIs; build RAG + GraphDB for real context
+5
+No personalization
+Same output for all users
+Low impact, generic solution
+Build user profiles; adapt responses based on behavior/data
+6
+No Bangla / localization
+English-only UI and logic
+Limits real adoption in Bangladesh
+Add Bangla UI, voice, and low-bandwidth options
+7
+Overbuilding features
+Too many features, none complete
+Unstable demo, poor clarity
+Focus on 1 core use case; make it work perfectly
+8
+No scalability thinking
+Works only on local machine/demo
+Fails enterprise readiness criteria
+Design APIs, cloud-ready architecture, modular components
+9
+Poor demo & storytelling
+Confusing explanation, unclear value
+Judges cannot understand impact
+Follow 4-minute structure: Problem → Solution → Demo → AI → Impact
+10
+Not leveraging team diversity
+Only developers, no business or domain input
+Solution lacks real-world relevance
+Include business/domain roles + NRB/global perspective
+
+Bonus Critical Mistake (Often Overlooked)
+#
+Mistake
+Impact
+Fix
+11
+Not using modern AI tools properly
+Teams code everything manually, losing speed advantage
+Use Lovable, Cursor, Claude Code, MCP, RAG, agents — build faster and smarter
+
+Teams are expected to demonstrate:
+AI-native design thinking
+Vibe coding
+Prompt engineering and thinking logic
+Model selection logic
+Context engineering
+Explainability
+Deployment feasibility
+
+
+Challenge
+Description
+Required Stack
+Resources
+Recommendations
+Winning Formula
+1. Fact-Checking Engine
+Verify content authenticity.
+Full stack + GraphRAG
+News datasets
+Use trusted sources
+Accuracy
+2. Deepfake Detection AI
+Detect manipulated media.
+Full stack + vision models
+Image/video datasets
+Focus speed
+Detection precision
+3. Misinformation Filter
+Identify false content.
+Full stack + NLP
+Social data
+Add explainability
+Transparency
+
+Public dashboard: Real-time alerts + explainability.
+Stack
+ Lovable • Cursor/Claude Code • LLMs • Vision models • GraphRAG • Scrapers (news/social) • Multilingual (Bangla)
+KPIs
+ False content detection ↑ • Trust score precision ↑ • Response latency ↓

@@ -6,21 +6,35 @@
 </head>
 <body>
   <div class="header">
-    <h1>Misinfo Detector</h1>
+    <h1 data-i18n="title">Misinfo Detector</h1>
   </div>
   
   <div class="content" id="history-container">
-    <div id="no-history">No recent checks found.</div>
+    <div id="no-history" data-i18n="noHistory">No recent checks found.</div>
     <div id="history-list"></div>
 
     <div class="settings">
-      <div class="settings-title">Backend URL</div>
+      <div class="settings-title" data-i18n="settingsTitle">Settings</div>
+
+      <label class="settings-label" for="language-mode" data-i18n="languageLabel">Language</label>
+      <select id="language-mode" class="settings-select">
+        <option value="auto" data-i18n="languageAuto">Auto</option>
+        <option value="en" data-i18n="languageEnglish">English</option>
+        <option value="bn" data-i18n="languageBangla">Bangla</option>
+      </select>
+
+      <label class="settings-toggle">
+        <input id="low-bandwidth" type="checkbox" />
+        <span data-i18n="lowBandwidth">Low-bandwidth mode</span>
+      </label>
+
+      <div class="settings-subtitle" data-i18n="backendTitle">Backend URL</div>
       <input id="backend-url" type="text" placeholder="http://localhost:3000" autocomplete="off" />
       <div class="settings-actions">
-        <button id="save-backend-url" type="button">Save</button>
+        <button id="save-backend-url" type="button" data-i18n="save">Save</button>
         <span id="backend-save-status" class="settings-status"></span>
       </div>
-      <div class="settings-help">Paste your ngrok HTTPS forwarding URL here.</div>
+      <div class="settings-help" data-i18n="backendHelp">Paste your ngrok HTTPS forwarding URL here.</div>
     </div>
   </div>
 

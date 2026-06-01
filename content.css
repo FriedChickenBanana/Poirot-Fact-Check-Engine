@@ -93,6 +93,22 @@
   letter-spacing: 0.5px;
 }
 
+#misinfo-detector-ui .misinfo-speak {
+  margin-left: auto;
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  padding: 4px 6px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+#misinfo-detector-ui .misinfo-speak:hover {
+  background: #ffffff;
+  color: #000000;
+}
+
 #misinfo-detector-ui .misinfo-explanation {
   font-size: 15px;
   line-height: 1.6;
@@ -140,4 +156,18 @@
   background-color: #ffffff;
   color: #000000;
   text-decoration: none;
+}
+
+#misinfo-detector-ui.misinfo-compact {
+  width: 260px;
+  padding: 14px;
+}
+
+#misinfo-detector-ui.misinfo-compact .misinfo-findings,
+#misinfo-detector-ui.misinfo-compact .misinfo-sources {
+  display: none;
+}
+
+#misinfo-detector-ui.misinfo-compact .misinfo-explanation {
+  font-size: 14px;
 }
