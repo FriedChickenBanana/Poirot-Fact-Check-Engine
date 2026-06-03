@@ -1,5 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   POIROT EXTENSION — Premium Dark Theme
+   POIROT EXTENSION — Injected Result Card — Black/White "Protocol" Theme
+   (matches the reference repo's brutalist extension styling)
    ═══════════════════════════════════════════════════════════════════════ */
 
 #misinfo-detector-ui {
@@ -9,53 +10,45 @@
   width: 380px;
   max-height: calc(100vh - 48px);
   overflow-y: auto;
-  background-color: rgba(22, 22, 31, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  color: #e8e8f0;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  background-color: #000000;
+  color: #ffffff;
+  border-radius: 0;
+  border: 2px solid #ffffff;
+  box-shadow: 6px 6px 0px #ffffff;
   padding: 24px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: "Georgia", "Times New Roman", serif;
   z-index: 2147483647;
   box-sizing: border-box;
-  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideUp 0.3s ease;
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-#misinfo-detector-ui * {
-  box-sizing: border-box;
-}
+#misinfo-detector-ui * { box-sizing: border-box; }
 
 #misinfo-detector-ui .misinfo-close {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
+  top: 12px;
+  right: 12px;
+  background: #000000;
+  border: 2px solid #ffffff;
+  border-radius: 0;
   width: 28px;
   height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #9494a8;
+  color: #ffffff;
   font-size: 18px;
+  font-family: Arial, sans-serif;
   cursor: pointer;
-  transition: all 0.2s ease;
   padding: 0;
   line-height: 1;
 }
-
-#misinfo-detector-ui .misinfo-close:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-  transform: scale(1.1);
-}
+#misinfo-detector-ui .misinfo-close:hover { background: #ffffff; color: #000000; }
 
 #misinfo-detector-ui .misinfo-brand {
   display: flex;
@@ -63,21 +56,20 @@
   gap: 8px;
   margin-bottom: 20px;
   font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 1px;
+  font-weight: 700;
+  letter-spacing: 2px;
   color: #ffffff;
   text-transform: uppercase;
 }
-#misinfo-detector-ui .misinfo-brand-icon {
-  font-size: 18px;
-}
+#misinfo-detector-ui .misinfo-brand-icon { font-size: 18px; }
 #misinfo-detector-ui .misinfo-brand-badge {
-  background: #6366f1;
-  color: white;
+  background: #ffffff;
+  color: #000000;
   font-size: 9px;
   padding: 2px 6px;
-  border-radius: 4px;
-  letter-spacing: 0.5px;
+  border-radius: 0;
+  letter-spacing: 1px;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 #misinfo-detector-ui .misinfo-header {
@@ -86,65 +78,72 @@
   align-items: flex-start;
   gap: 12px;
   margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #ffffff;
+  flex-wrap: wrap;
 }
 
 #misinfo-detector-ui .misinfo-badge {
   padding: 6px 12px;
-  border-radius: 6px;
-  font-weight: 800;
+  border-radius: 0;
+  font-weight: 700;
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 1px;
   display: inline-block;
+  border: 2px solid;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-#misinfo-detector-ui .badge-true { background-color: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); }
-#misinfo-detector-ui .badge-false { background-color: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
-#misinfo-detector-ui .badge-uncertain { background-color: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.3); }
-#misinfo-detector-ui .badge-satirical { background-color: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3); }
-#misinfo-detector-ui .badge-error { background-color: rgba(255, 255, 255, 0.05); color: #9494a8; border: 1px solid rgba(255, 255, 255, 0.1); }
+#misinfo-detector-ui .badge-true { background-color: #000000; color: #00ff00; border-color: #00ff00; }
+#misinfo-detector-ui .badge-false { background-color: #000000; color: #ff0000; border-color: #ff0000; }
+#misinfo-detector-ui .badge-uncertain { background-color: #000000; color: #ffff00; border-color: #ffff00; }
+#misinfo-detector-ui .badge-satirical { background-color: #000000; color: #ffffff; border-color: #ffffff; }
+#misinfo-detector-ui .badge-error { background-color: #000000; color: #888888; border-color: #888888; }
 
 #misinfo-detector-ui .misinfo-metrics {
   display: flex;
   gap: 12px;
   text-align: right;
 }
-#misinfo-detector-ui .misinfo-metric {
-  display: flex;
-  flex-direction: column;
-}
+#misinfo-detector-ui .misinfo-metric { display: flex; flex-direction: column; }
 #misinfo-detector-ui .metric-label {
   font-size: 10px;
-  color: #9494a8;
+  color: #ffffff;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 #misinfo-detector-ui .metric-value {
   font-size: 16px;
-  font-weight: 800;
-  color: #818cf8;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 #misinfo-detector-ui .misinfo-explanation {
   font-size: 15px;
   line-height: 1.6;
   margin: 0 0 20px 0;
-  color: #e8e8f0;
+  color: #ffffff;
 }
 
 #misinfo-detector-ui .misinfo-findings,
 #misinfo-detector-ui .misinfo-sources {
   font-size: 13px;
   margin-bottom: 16px;
+  border-top: 1px dashed #ffffff;
+  padding-top: 12px;
 }
 
 #misinfo-detector-ui .misinfo-section-title {
   font-size: 11px;
-  color: #9494a8;
+  color: #ffffff;
   text-transform: uppercase;
   letter-spacing: 1px;
   margin-bottom: 8px;
-  font-weight: 600;
+  font-weight: 700;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 #misinfo-detector-ui .misinfo-findings ul,
@@ -158,12 +157,12 @@
   margin-bottom: 8px;
   line-height: 1.5;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  color: #e8e8f0;
+  border-bottom: 1px dashed #ffffff;
+  color: #ffffff;
 }
 #misinfo-detector-ui .misinfo-findings li::before {
   content: '→';
-  color: #6366f1;
+  color: #ffffff;
   margin-right: 6px;
   font-weight: bold;
 }
@@ -173,34 +172,24 @@
   padding-bottom: 0;
 }
 
-#misinfo-detector-ui .misinfo-sources li {
-  margin-bottom: 6px;
-}
+#misinfo-detector-ui .misinfo-sources li { margin-bottom: 6px; }
 #misinfo-detector-ui .misinfo-sources a {
-  color: #818cf8;
+  color: #ffffff;
+  font-weight: bold;
   text-decoration: none;
-  transition: color 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  border-bottom: 1px solid #ffffff;
 }
-#misinfo-detector-ui .misinfo-sources a::before {
-  content: '🔗';
-  font-size: 10px;
-  opacity: 0.7;
-}
-#misinfo-detector-ui .misinfo-sources a:hover {
-  color: #a5b4fc;
-  text-decoration: underline;
-}
+#misinfo-detector-ui .misinfo-sources a:hover { background-color: #ffffff; color: #000000; }
 
 #misinfo-detector-ui .misinfo-meta {
   margin-top: 20px;
   padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 2px solid #ffffff;
   font-size: 11px;
-  color: #5c5c70;
-  font-family: 'JetBrains Mono', monospace;
+  color: #ffffff;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -209,73 +198,66 @@
 #misinfo-detector-ui .misinfo-feedback {
   margin-top: 20px;
   padding: 16px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: #000000;
+  border-radius: 0;
+  border: 2px solid #ffffff;
 }
 
 #misinfo-detector-ui .misinfo-feedback strong {
   display: block;
   font-size: 13px;
   margin-bottom: 12px;
-  color: #e8e8f0;
+  color: #ffffff;
 }
 
 #misinfo-detector-ui .misinfo-feedback button {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #e8e8f0;
+  background: #000000;
+  border: 2px solid #ffffff;
+  border-radius: 0;
+  color: #ffffff;
   padding: 8px 16px;
-  border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  transition: all 0.2s;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   margin-right: 8px;
 }
-#misinfo-detector-ui .misinfo-feedback button:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-#misinfo-detector-ui .misinfo-feedback button.active-up { background: rgba(34, 197, 94, 0.2); border-color: rgba(34, 197, 94, 0.4); color: #22c55e; }
-#misinfo-detector-ui .misinfo-feedback button.active-down { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #ef4444; }
+#misinfo-detector-ui .misinfo-feedback button:hover { background: #ffffff; color: #000000; }
+#misinfo-detector-ui .misinfo-feedback button.active-up { background: #000000; border-color: #00ff00; color: #00ff00; }
+#misinfo-detector-ui .misinfo-feedback button.active-down { background: #000000; border-color: #ff0000; color: #ff0000; }
 
 #misinfo-detector-ui #misinfo-feedback-form textarea {
   width: 100%;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  background: #000000;
+  border: 2px solid #ffffff;
+  border-radius: 0;
   padding: 12px;
-  color: #e8e8f0;
+  color: #ffffff;
   font-family: inherit;
   font-size: 13px;
   resize: vertical;
   min-height: 80px;
   margin-bottom: 12px;
-  transition: border-color 0.2s;
 }
-#misinfo-detector-ui #misinfo-feedback-form textarea:focus {
-  outline: none;
-  border-color: #6366f1;
-}
+#misinfo-detector-ui #misinfo-feedback-form textarea:focus { outline: none; }
 
 #misinfo-detector-ui #misinfo-submit-feedback {
-  background: #6366f1;
-  color: white;
-  border: none;
+  background: #ffffff;
+  color: #000000;
+  border: 2px solid #ffffff;
   width: 100%;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
 }
-#misinfo-detector-ui #misinfo-submit-feedback:hover {
-  background: #4f46e5;
-  transform: translateY(-1px);
-}
+#misinfo-detector-ui #misinfo-submit-feedback:hover { background: #000000; color: #ffffff; }
 
 /* Loading state */
 #misinfo-detector-ui .misinfo-loading-spinner {
   width: 24px;
   height: 24px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  border-top: 2px solid #6366f1;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top: 2px solid #ffffff;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 16px;
@@ -283,16 +265,6 @@
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
 /* Scrollbar */
-#misinfo-detector-ui::-webkit-scrollbar {
-  width: 6px;
-}
-#misinfo-detector-ui::-webkit-scrollbar-track {
-  background: transparent;
-}
-#misinfo-detector-ui::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-}
-#misinfo-detector-ui::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
+#misinfo-detector-ui::-webkit-scrollbar { width: 6px; }
+#misinfo-detector-ui::-webkit-scrollbar-track { background: #000000; }
+#misinfo-detector-ui::-webkit-scrollbar-thumb { background: #ffffff; border-radius: 0; }

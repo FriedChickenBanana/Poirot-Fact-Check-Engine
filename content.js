@@ -54,7 +54,7 @@ function createOrUpdatePopup(data) {
     content.innerHTML = `
       <div style="text-align:center; padding: 20px 0;">
         <div class="misinfo-loading-spinner"></div>
-        <div style="color: #9494a8; font-size: 14px;">${data.explanation}</div>
+        <div style="color: #ffffff; font-size: 14px; font-style: italic;">${data.explanation}</div>
       </div>
     `;
     return;
@@ -98,7 +98,7 @@ function createOrUpdatePopup(data) {
     reasoningHtml = `
       <div class="misinfo-findings">
         <div class="misinfo-section-title">🧩 Reasoning</div>
-        <ol style="margin:0;padding-left:18px;">${data.reasoning_chain.map(s => `<li style="font-size:11px;color:#a0a0b8;margin-bottom:3px;">${s}</li>`).join('')}</ol>
+        <ol style="margin:0;padding-left:18px;">${data.reasoning_chain.map(s => `<li style="font-size:11px;color:#ffffff;margin-bottom:3px;">${s}</li>`).join('')}</ol>
       </div>`;
   }
 
@@ -107,9 +107,9 @@ function createOrUpdatePopup(data) {
   if (data.bias_flags?.length > 0) {
     biasHtml = `
       <div class="misinfo-findings" style="margin-top:8px;">
-        <div class="misinfo-section-title" style="color:#f59e0b;">⚠️ Bias Flags</div>
+        <div class="misinfo-section-title" style="color:#ffff00;">⚠️ Bias Flags</div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">
-          ${data.bias_flags.map(b => `<span style="font-size:10px;background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:2px 8px;">${String(b).replace(/_/g, ' ')}</span>`).join('')}
+          ${data.bias_flags.map(b => `<span style="font-size:10px;background:#000000;color:#ffff00;border:1px solid #ffff00;border-radius:0;padding:2px 8px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${String(b).replace(/_/g, ' ')}</span>`).join('')}
         </div>
       </div>`;
   }
@@ -132,9 +132,9 @@ function createOrUpdatePopup(data) {
   let literacyHtml = "";
   if (data.literacy_tip) {
     literacyHtml = `
-      <div style="background:rgba(99,102,241,0.08);border-left:3px solid #6366f1;border-radius:4px;padding:8px 10px;margin-top:8px;">
-        <div class="misinfo-section-title" style="color:#6366f1;margin-bottom:4px;">💡 Literacy Tip</div>
-        <p style="font-size:11px;color:#a0a0b8;margin:0;line-height:1.5;">${data.literacy_tip}</p>
+      <div style="background:#000000;border-left:3px solid #ffffff;border-radius:0;padding:8px 10px;margin-top:8px;">
+        <div class="misinfo-section-title" style="color:#ffffff;margin-bottom:4px;">💡 Literacy Tip</div>
+        <p style="font-size:11px;color:#ffffff;margin:0;line-height:1.5;">${data.literacy_tip}</p>
       </div>`;
   }
 
@@ -202,7 +202,7 @@ function createOrUpdatePopup(data) {
       document.getElementById("misinfo-feedback-section").innerHTML = `
         <div style="text-align:center; padding: 10px 0;">
           <span style="font-size: 24px; display:block; margin-bottom:8px;">✅</span>
-          <span style="color:#22c55e; font-size: 13px; font-weight:600;">Feedback submitted. Thank you!</span>
+          <span style="color:#00ff00; font-size: 13px; font-weight:600;">Feedback submitted. Thank you!</span>
         </div>
       `;
       
