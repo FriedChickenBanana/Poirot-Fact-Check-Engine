@@ -414,9 +414,6 @@ function App() {
                 >
                   {isSubmitting ? 'Running' : t(uiLanguage, 'submit')}
                 </button>
-                <span className="text-xs uppercase tracking-[0.2em] text-white/50">
-                  Backend: {backendBaseUrl}
-                </span>
               </div>
             </div>
           </form>
