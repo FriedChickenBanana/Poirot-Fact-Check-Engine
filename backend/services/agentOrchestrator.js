@@ -16,7 +16,7 @@
 // ══════════════════════════════════════════════════════════════════════════
 
 const { Anthropic } = require('@anthropic-ai/sdk');
-const { extractJson, collectUrls } = require('../utils/helpers');
+const { extractJson, repairTruncatedJson, collectUrls } = require('../utils/helpers');
 const { searchRelevantContext } = require('./ragService');
 const { queryGoogleFactCheck } = require('./factCheckService');
 const { retrieveGraphContext } = require('./graphRagService');
@@ -29,10 +29,8 @@ const MODELS = {
   SMART: 'claude-sonnet-4-6',           // Sonnet 4.6 — best accuracy for final verdict
 };
 
-let totalTokensUsed = 0;
-
 // ── Agent 1: Language Detection + Claim Classification (HAIKU — ~200 tokens) ──
-async function classifyClaim(content, type) {
+async function classifyClaim(content, type, tokens) {
   const res = await anthropic.messages.create({
     model: MODELS.CHEAP,
     max_tokens: 200,
@@ -46,7 +44,7 @@ Claim: "${typeof content === 'string' ? content.substring(0, 500) : 'image conte
   });
 
   const raw = res.content.find(b => b.type === 'text')?.text || '';
-  totalTokensUsed += (res.usage?.input_tokens || 0) + (res.usage?.output_tokens || 0);
+  tokens.count += (res.usage?.input_tokens || 0) + (res.usage?.output_tokens || 0);
 
   try {
     return extractJson(raw);
@@ -55,8 +53,8 @@ Claim: "${typeof content === 'string' ? content.substring(0, 500) : 'image conte
   }
 }
 
-// ── Agent 2: Image Extraction (HAIKU for cost, Vision capable) ──────────────
-async function extractImageInfo(imageBlock) {
+// ── Agent 2: Image Content Extraction (HAIKU for cost, Vision capable) ───────
+async function extractImageInfo(imageBlock, tokens) {
   const res = await anthropic.messages.create({
     model: MODELS.CHEAP,
     max_tokens: 500,
@@ -66,20 +64,20 @@ async function extractImageInfo(imageBlock) {
         imageBlock,
         {
           type: 'text',
-          text: `You are a Deepfake Forensics Agent. Analyze this image for fact-checking and manipulation. Return ONLY JSON:
-{"is_satirical":false,"satirical_reason":null,"visible_text":"ALL text verbatim, preserve Bengali (বাংলা)","people":"names","location":"place","date_clues":"dates","tone":"alarming|propaganda|misleading|satire|meme|neutral","source":"logos/watermarks","manipulation":"Generative AI footprint detected, AI Watermark, Deepfake artifacts, or None detected","deepfake_probability":0-100,"forensic_flags":["flag1","flag2"],"key_claim":"core factual claim","search_query":"English search query to verify"}`
+          text: `You are an Image Content Extraction Agent. Extract all factual information from this image for fact-checking. Focus on WHAT the image says and claims, not whether the image itself is edited or manipulated. Return ONLY JSON:
+{"is_satirical":false,"satirical_reason":null,"visible_text":"ALL text verbatim, preserve Bengali (বাংলা)","people":"names","location":"place","date_clues":"dates","tone":"alarming|propaganda|misleading|satire|meme|neutral","source":"logos/watermarks","key_claim":"core factual claim","search_query":"English search query to verify"}`
         }
       ]
     }],
   });
 
   const raw = res.content.find(b => b.type === 'text')?.text || '';
-  totalTokensUsed += (res.usage?.input_tokens || 0) + (res.usage?.output_tokens || 0);
+  tokens.count += (res.usage?.input_tokens || 0) + (res.usage?.output_tokens || 0);
   return extractJson(raw);
 }
 
 // ── Agent 3: Claim Decomposition (HAIKU — for complex claims) ───────────────
-async function decomposeClaimIfComplex(content) {
+async function decomposeClaimIfComplex(content, tokens) {
   // Only decompose if content is long (>200 chars) — saves tokens on simple claims
   if (content.length < 200) {
     return [content];
@@ -98,7 +96,7 @@ Claim: "${content.substring(0, 800)}"`,
   });
 
   const raw = res.content.find(b => b.type === 'text')?.text || '';
-  totalTokensUsed += (res.usage?.input_tokens || 0) + (res.usage?.output_tokens || 0);
+  tokens.count += (res.usage?.input_tokens || 0) + (res.usage?.output_tokens || 0);
 
   try {
     const parsed = JSON.parse(raw.replace(/```json?\s*/g, '').replace(/```/g, '').trim());
@@ -109,8 +107,14 @@ Claim: "${content.substring(0, 800)}"`,
 }
 
 // ── Agent 4: Evidence Gathering + Verdict (SONNET — web search) ─────────────
-// This is the ONLY agent that uses the expensive model, because it needs web search (unless useFastModel is true)
-async function searchAndVerdict(userContent, ragContext, factCheckContext, trustContext, graphRagContext, language, useFastModel = false, persona = 'General Public') {
+// Two INDEPENDENT controls so we never trade away freshness for cost:
+//   • skipWebSearch — only true when we already have a strong Google Fact Check
+//     match. Anything uncertain (not in RAG/GraphRAG, or only loosely matched)
+//     keeps web search ON so recent events are still verified against the web.
+//   • useCheapModel — use Haiku instead of Sonnet for cost. Can be true while
+//     web search is still ON (e.g. GraphRAG gave supporting context but the
+//     specific claim still needs fresh web verification).
+async function searchAndVerdict(userContent, ragContext, factCheckContext, trustContext, graphRagContext, language, skipWebSearch = false, useCheapModel = false, persona = 'General Public', tokens = { count: 0 }) {
   const langInstruction = language === 'bn'
     ? '\nProvide your explanation in Bangla (বাংলা) language.'
     : '';
@@ -122,15 +126,18 @@ async function searchAndVerdict(userContent, ragContext, factCheckContext, trust
     personaInstruction = '\nPERSONA = Journalist: Provide high-density facts, source credibility breakdowns, and dense evidence.';
   }
 
-  const SYSTEM = `You are Poirot, an elite fact-checker. Be precise and conservative.${langInstruction}${personaInstruction}
+  const todayStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const SYSTEM = `You are Poirot, an elite fact-checker. Be precise and conservative. Today's date is ${todayStr}.${langInstruction}${personaInstruction}
 
 Do ONE web search, then output ONLY JSON:
-{"verdict":"Likely True"|"Likely False"|"Uncertain","confidence":0-100,"explanation":"3-5 lines with evidence tailored to the persona","key_findings":["finding1","finding2"],"sources":["url1","url2"],"bias_flags":[],"reasoning_chain":["step1","step2"],"literacy_tip":"1 short, actionable tip on how to spot this type of misinformation or manipulation in the future (tailored to the persona)"}
+{"verdict":"Likely True"|"Likely False"|"Uncertain","confidence":0-100,"explanation":"2-3 SHORT sentences citing the key evidence","key_findings":["finding1","finding2"],"sources":["url1","url2"],"bias_flags":[],"reasoning_chain":["step1","step2"],"literacy_tip":"1 short tip to spot this kind of misinformation"}
 
 Rules:
 - "Likely True" → Confirmed by reliable sources
 - "Likely False" → Contradicted, reused/out-of-context, fabricated
 - "Uncertain" → Insufficient evidence. Never guess.
+- BE CONCISE. Keep the whole JSON under ~180 words so it is never cut off. explanation ≤ 3 sentences, key_findings ≤ 3 items, reasoning_chain ≤ 3 brief steps. In Bangla, be especially terse — Bangla uses far more tokens.
 ${ragContext ? '\n=== KNOWLEDGE BASE CONTEXT ===\n' + ragContext + '\n===' : ''}
 ${graphRagContext ? '\n=== GRAPH RAG CONTEXT ===\n' + graphRagContext + '\n===' : ''}
 ${factCheckContext || ''}
@@ -142,25 +149,35 @@ ${trustContext || ''}`;
   for (let i = 0; i < 2; i++) {
     const isLastIteration = i === 1;
     const response = await anthropic.messages.create({
-      model: useFastModel ? MODELS.CHEAP : MODELS.SMART,
-      max_tokens: 800,
+      model: useCheapModel ? MODELS.CHEAP : MODELS.SMART,
+      max_tokens: 1600,
       system: SYSTEM,
-      tools: useFastModel ? undefined : [{ type: 'web_search_20250305', name: 'web_search' }],
-      ...(useFastModel || isLastIteration ? { tool_choice: { type: 'none' } } : {}),
+      tools: skipWebSearch ? undefined : [{ type: 'web_search_20250305', name: 'web_search' }],
+      ...(skipWebSearch || isLastIteration ? { tool_choice: { type: 'none' } } : {}),
       messages,
     });
 
-    totalTokensUsed += (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0);
+    tokens.count += (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0);
     collectedUrls = collectedUrls.concat(collectUrls(response.content));
 
-    if (response.stop_reason === 'end_turn') {
-      const text = response.content.filter(b => b.type === 'text').map(b => b.text).join('');
-      return { text, urls: collectedUrls };
+    // Extract text from this response (works for end_turn AND max_tokens)
+    const responseText = response.content.filter(b => b.type === 'text').map(b => b.text).join('');
+
+    if (response.stop_reason === 'end_turn' || response.stop_reason === 'max_tokens') {
+      if (responseText) {
+        return { text: responseText, urls: collectedUrls };
+      }
     }
 
     messages.push({ role: 'assistant', content: response.content });
     const toolUses = response.content.filter(b => b.type === 'tool_use');
-    if (!toolUses.length) break;
+    if (!toolUses.length) {
+      // No more tool calls — return whatever text we have rather than empty string
+      if (responseText) {
+        return { text: responseText, urls: collectedUrls };
+      }
+      break;
+    }
 
     const searchResults = response.content.filter(b => b.type === 'web_search_tool_result');
     messages.push({
@@ -181,7 +198,7 @@ function detectLanguage(text) {
 }
 
 // ── Shared shape for early satire exits ────────────────────────────────────
-function satiricalResult(explanation, finding, reasoning, agents, t0, language) {
+function satiricalResult(explanation, finding, reasoning, agents, t0, language, tokens) {
   return {
     verdict: 'Satirical',
     confidence: 90,
@@ -192,7 +209,7 @@ function satiricalResult(explanation, finding, reasoning, agents, t0, language) 
     bias_flags: [],
     reasoning_chain: [reasoning],
     agents_used: agents,
-    tokens_used: totalTokensUsed,
+    tokens_used: tokens.count,
     latency_ms: Date.now() - t0,
     language,
   };
@@ -202,7 +219,7 @@ function satiricalResult(explanation, finding, reasoning, agents, t0, language) 
 // MAIN ORCHESTRATOR — coordinates all agents
 // ══════════════════════════════════════════════════════════════════════════
 async function orchestrate({ type, content, base64, imageBlock, persona }) {
-  totalTokensUsed = 0;
+  const tokens = { count: 0 };
   const t0 = Date.now();
   const agents = [];
 
@@ -217,7 +234,7 @@ async function orchestrate({ type, content, base64, imageBlock, persona }) {
     // classifier — classifying the image URL was wasted work and mis-detected
     // language (Step 2 of the old flow ran AFTER a useless classify call).
     try {
-      extracted = await extractImageInfo(imageBlock);
+      extracted = await extractImageInfo(imageBlock, tokens);
       agents.push('image_extractor');
       console.log(`[Agent:Extract] ${Date.now() - t0}ms`);
 
@@ -226,7 +243,7 @@ async function orchestrate({ type, content, base64, imageBlock, persona }) {
           extracted.satirical_reason || 'Satirical/meme content detected.',
           'Image identified as satire or meme content',
           'Image classified as satirical by vision agent',
-          agents, t0, detectLanguage(extracted.visible_text)
+          agents, t0, detectLanguage(extracted.visible_text), tokens
         );
       }
       language = detectLanguage(extracted?.visible_text);
@@ -235,7 +252,7 @@ async function orchestrate({ type, content, base64, imageBlock, persona }) {
     }
   } else {
     // Text: classify language, satire, category, and an optimized search query.
-    classification = await classifyClaim(content, type);
+    classification = await classifyClaim(content, type, tokens);
     agents.push('classifier');
     language = classification.lang || 'en';
     console.log(`[Agent:Classify] ${Date.now() - t0}ms`, JSON.stringify(classification));
@@ -247,14 +264,14 @@ async function orchestrate({ type, content, base64, imageBlock, persona }) {
           : 'Content identified as satire or humor, not a factual claim.',
         'Content identified as satire/humor',
         'Classified as satirical content by pre-processor',
-        agents, t0, language
+        agents, t0, language, tokens
       );
     }
   }
 
   // Step 3: Claim decomposition for complex claims (HAIKU — ~$0.0003)
   const textContent = extracted?.key_claim || content;
-  const subClaims = await decomposeClaimIfComplex(textContent);
+  const subClaims = await decomposeClaimIfComplex(textContent, tokens);
   if (subClaims.length > 1) agents.push('decomposer');
 
   // Step 4: Build the prompt for verdict agent
@@ -262,15 +279,13 @@ async function orchestrate({ type, content, base64, imageBlock, persona }) {
 
   if (extracted) {
     const lines = [
-      '=== IMAGE ANALYSIS ===',
+      '=== IMAGE CONTENT ANALYSIS ===',
       `Text: ${extracted.visible_text || 'None'}`,
       `People: ${extracted.people || 'None'}`,
       `Location: ${extracted.location || 'Unknown'}`,
+      `Date Clues: ${extracted.date_clues || 'None'}`,
       `Tone: ${extracted.tone || 'Neutral'}`,
       `Source: ${extracted.source || 'None'}`,
-      `Manipulation: ${extracted.manipulation || 'None detected'}`,
-      `Deepfake Probability: ${extracted.deepfake_probability !== undefined ? extracted.deepfake_probability + '%' : 'N/A'}`,
-      extracted.forensic_flags?.length ? `Forensic Flags: ${extracted.forensic_flags.join(', ')}` : '',
       `Key Claim: ${extracted.key_claim || 'Unknown'}`,
       subClaims.length > 1 ? `Sub-claims: ${subClaims.join(' | ')}` : '',
       `\nSearch: "${extracted.search_query || extracted.key_claim}"`,
@@ -293,6 +308,10 @@ async function orchestrate({ type, content, base64, imageBlock, persona }) {
   const retrievalText = (extracted?.key_claim || textContent || '').toString().substring(0, 500);
   const factCheckQuery = (classification?.search_query || extracted?.search_query || retrievalText).toString().substring(0, 200);
 
+  // RAG, Google Fact Check, and GraphRAG are independent — fan them out in
+  // parallel. RAG and GraphRAG each embed their own text (Voyage is ~free, and
+  // letting each embed the exact slice it's tuned for preserves accuracy); the
+  // two embedding calls run concurrently here anyway.
   const [ragContext, existingFactChecks, graphRagContext] = await Promise.all([
     searchRelevantContext(retrievalText),
     queryGoogleFactCheck(factCheckQuery),
@@ -309,16 +328,20 @@ async function orchestrate({ type, content, base64, imageBlock, persona }) {
   if (graphRagContext) console.log('[GraphRAG] Found semantic relationships');
 
   // Step 4.5: 9Router-inspired Token Optimization
-  // If we have extensive GraphRAG context or exact Google Fact Check match, we can bypass expensive web search
-  const canUseFastPath = (graphRagContext && graphRagContext.includes('Evidence:')) ||
-                         (factCheckContext && factCheckContext.includes('EXISTING FACT-CHECKS'));
-  
-  if (canUseFastPath) {
-    agents.push('9router_fast_path');
-    console.log(`[Agent:Router] Routing to fast path (Haiku) due to existing context`);
-  }
+  //
+  // The verdict ALWAYS runs on Haiku now: ~3x cheaper than Sonnet, much faster,
+  // and it keeps the round-trip under Chrome's 30s service-worker limit. Web
+  // search stays ON for freshness in every case EXCEPT when we already have a
+  // strong Google Fact Check match — the only signal strong enough to trust
+  // without fresh web verification.
+  const hasStrongFactCheck = factCheckContext && factCheckContext.includes('EXISTING FACT-CHECKS');
+  const skipWebSearch = hasStrongFactCheck;
+  const useCheaperModel = true; // Haiku for the verdict by default
 
-  // Step 5: Verdict synthesis (SONNET or HAIKU based on router)
+  agents.push(skipWebSearch ? '9router_fast_path' : '9router_cheap_model');
+  console.log(`[Agent:Router] ${skipWebSearch ? 'Fast path: Haiku, no web search (strong fact-check match)' : 'Haiku + web search'}`);
+
+  // Step 5: Verdict synthesis (HAIKU; web search unless strong fact-check)
   agents.push('verdict_synthesizer');
   const { text: rawVerdict, urls } = await searchAndVerdict(
     promptParts,
@@ -327,8 +350,10 @@ async function orchestrate({ type, content, base64, imageBlock, persona }) {
     trustContext || '',
     graphRagContext || '',
     language,
-    canUseFastPath,
-    persona
+    skipWebSearch,
+    useCheaperModel,
+    persona,
+    tokens
   );
   console.log(`[Agent:Verdict] ${Date.now() - t0}ms`);
 
@@ -337,13 +362,30 @@ async function orchestrate({ type, content, base64, imageBlock, persona }) {
   try {
     result = extractJson(rawVerdict);
   } catch {
-    result = {
-      verdict: 'Uncertain',
-      confidence: 0,
-      explanation: 'Could not parse AI response.',
-      key_findings: [],
-      sources: [],
-    };
+    // Log the raw response so we can debug why parsing failed
+    console.warn('[Agent:Verdict] JSON parse failed. Raw response:', rawVerdict?.substring(0, 500));
+
+    // Try to salvage useful information from non-JSON responses
+    // Claude sometimes wraps JSON in disclaimers for sensitive topics,
+    // or the response gets truncated at max_tokens mid-JSON
+    const raw = String(rawVerdict || '');
+
+    // Attempt to repair truncated JSON (max_tokens cutoff) — closes any
+    // string/array/object the cutoff left open so we keep the real verdict.
+    result = repairTruncatedJson(raw);
+
+    if (!result) {
+      // Extract what we can from the raw text
+      const verdictMatch = raw.match(/(?:likely\s+true|likely\s+false|uncertain)/i);
+      const confMatch = raw.match(/confidence["\s:]+(\d+)/i);
+      result = {
+        verdict: verdictMatch ? verdictMatch[0].replace(/\b\w/g, c => c.toUpperCase()) : 'Uncertain',
+        confidence: confMatch ? parseInt(confMatch[1]) : 0,
+        explanation: raw.replace(/```[\s\S]*?```/g, '').replace(/[{}"\[\]]/g, '').trim().substring(0, 500) || 'Could not parse AI response.',
+        key_findings: [],
+        sources: [],
+      };
+    }
   }
 
   if (!result.sources?.length) result.sources = urls.slice(0, 5);
@@ -355,7 +397,22 @@ async function orchestrate({ type, content, base64, imageBlock, persona }) {
   const biasFlags = result.bias_flags || [];
   if (biasFlags.length > 0) agents.push('bias_detector');
 
+  // Canonical TEXT representation of the claim for self-learning (RAG) and graph
+  // building. For images this is the EXTRACTED info (key claim, visible text,
+  // people, place, date) — never the base64 pixels — so a future *similar* claim
+  // can hit this grounding even if the image itself differs.
+  const claimText = extracted
+    ? [
+        extracted.key_claim,
+        extracted.visible_text,
+        extracted.people && `People: ${extracted.people}`,
+        extracted.location && `Location: ${extracted.location}`,
+        extracted.date_clues && `Date: ${extracted.date_clues}`,
+      ].filter(Boolean).join('. ').substring(0, 1000)
+    : (content || '');
+
   return {
+    claim_text: claimText,
     verdict: result.verdict,
     confidence: result.confidence || 0,
     explanation: result.explanation || '',
@@ -365,10 +422,8 @@ async function orchestrate({ type, content, base64, imageBlock, persona }) {
     bias_flags: biasFlags,
     reasoning_chain: result.reasoning_chain || [],
     literacy_tip: result.literacy_tip || 'Always verify the source and look for multiple independent confirmations.',
-    deepfake_probability: extracted ? extracted.deepfake_probability : undefined,
-    forensic_flags: extracted ? extracted.forensic_flags : undefined,
     agents_used: agents,
-    tokens_used: totalTokensUsed,
+    tokens_used: tokens.count,
     latency_ms: Date.now() - t0,
     language,
     search_query: classification?.search_query || extracted?.search_query,

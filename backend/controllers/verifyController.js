@@ -68,12 +68,17 @@ async function verifyFactCheck(req, res, next) {
     res.json(result);
 
     // ── Step 8: Background persistence (fire-and-forget, never blocks) ──
+    // Learn from the canonical CLAIM TEXT, not the raw request: image requests
+    // have no `content`, so the orchestrator hands back `claim_text` built from
+    // the vision extraction (key claim, visible text, people, place). This is
+    // why images previously saved nothing / failed graph extraction.
+    const learnText = (result.claim_text || safeContent || '').substring(0, 1000);
     Promise.allSettled([
       updateSourceProfile(result.sources, result.verdict),
-      learnFromVerification(safeContent.substring(0, 500), result.verdict, result.sources),
+      learnText ? learnFromVerification(learnText.substring(0, 500), result.verdict, result.sources) : Promise.resolve(),
       setCached(type, cacheKey, result),
-      (result.verdict === 'Likely True' || result.verdict === 'Likely False')
-        ? saveToGraph(safeContent.substring(0, 1000), result.sources?.[0])
+      (learnText && (result.verdict === 'Likely True' || result.verdict === 'Likely False'))
+        ? saveToGraph(learnText, result.sources?.[0])
         : Promise.resolve(),
       logVerification({
         claimType: type,

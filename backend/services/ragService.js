@@ -91,57 +91,78 @@ async function addToKnowledgeBase({ content, contentType, sourceUrl, sourceName,
   const vectorStr = `[${embedding.join(',')}]`;
   
   try {
-    await pool.query(
+    const res = await pool.query(
       `INSERT INTO knowledge_base (content, content_type, source_url, source_name, language, embedding, metadata)
        VALUES ($1, $2, $3, $4, $5, $6::vector, $7)
        ON CONFLICT DO NOTHING`,
       [content, contentType || 'fact', sourceUrl, sourceName, language || 'en', vectorStr, JSON.stringify(metadata || {})]
     );
+    if (res.rowCount > 0) {
+      console.log(`[RAG] Saved 1 ${contentType || 'fact'} to knowledge base`);
+    } else {
+      console.log('[RAG] Skipped duplicate (already in knowledge base)');
+    }
   } catch (err) {
     console.warn('[RAG] Insert failed:', err.message);
   }
 }
 
 // ── Search knowledge base for relevant context ───────────────────────────
-// Uses both vector similarity AND full-text search for best results
+// Uses both vector similarity AND full-text search for best results.
+const MIN_VECTOR_SIM = 0.5; // cosine-similarity floor — drop loosely-related matches
+
 async function searchRelevantContext(query, topK = 3) {
   try {
-    // Method 1: Full-text search using 'simple' config — works for both English and Bangla
-    // ('english' config only handles ASCII; 'simple' tokenizes any Unicode including বাংলা)
-    const textResults = await pool.query(
-      `SELECT content, content_type, source_name, source_url,
-              ts_rank(to_tsvector('simple', content), plainto_tsquery('simple', $1)) as rank
-       FROM knowledge_base
-       WHERE to_tsvector('simple', content) @@ plainto_tsquery('simple', $1)
-       ORDER BY rank DESC
-       LIMIT $2`,
-      [query.substring(0, 500), topK]
-    );
-
-    // Method 2: Vector similarity (if we have embeddings)
-    const queryVector = await textToSimpleVector(query);
-    const vectorStr = `[${queryVector.join(',')}]`;
-    
-    let vectorResults = { rows: [] };
-    try {
-      vectorResults = await pool.query(
+    // Method 1 (full-text) needs no embedding, so run it in parallel with the
+    // embedding generation rather than waiting for one before the other.
+    // 'simple' config works for both English and Bangla ('english' only handles
+    // ASCII; 'simple' tokenizes any Unicode including বাংলা).
+    const [textResults, queryVector] = await Promise.all([
+      pool.query(
         `SELECT content, content_type, source_name, source_url,
-                1 - (embedding <=> $1::vector) as similarity
+                ts_rank(to_tsvector('simple', content), plainto_tsquery('simple', $1)) as rank
          FROM knowledge_base
-         WHERE embedding IS NOT NULL
-         ORDER BY embedding <=> $1::vector
+         WHERE to_tsvector('simple', content) @@ plainto_tsquery('simple', $1)
+         ORDER BY rank DESC
          LIMIT $2`,
-        [vectorStr, topK]
-      );
-    } catch {
-      // Vector extension might not be available yet
+        [query.substring(0, 500), topK]
+      ),
+      textToSimpleVector(query),
+    ]);
+
+    // Method 2: Vector similarity, keeping only matches above the relevance floor.
+    let vectorResults = { rows: [] };
+    if (Array.isArray(queryVector)) {
+      const vectorStr = `[${queryVector.join(',')}]`;
+      try {
+        // Fetch the nearest rows unfiltered so we can log the actual best
+        // similarity; the relevance floor is applied in JS below.
+        vectorResults = await pool.query(
+          `SELECT content, content_type, source_name, source_url,
+                  1 - (embedding <=> $1::vector) as similarity
+           FROM knowledge_base
+           WHERE embedding IS NOT NULL
+           ORDER BY embedding <=> $1::vector
+           LIMIT $2`,
+          [vectorStr, topK]
+        );
+      } catch {
+        // Vector extension might not be available yet
+      }
     }
 
-    // Merge and deduplicate results
+    // Best raw scores found (even below the floor) — shows how close the nearest
+    // stored fact was, so the terminal always reports a real RAG score.
+    const topSim = Math.max(0, ...vectorResults.rows.map(r => Number(r.similarity) || 0));
+    const topRank = Math.max(0, ...textResults.rows.map(r => Number(r.rank) || 0));
+
+    // Keep only vector hits at/above the relevance floor; full-text hits already
+    // required real lexical overlap, so they stay as-is.
+    const relevantVector = vectorResults.rows.filter(r => (Number(r.similarity) || 0) >= MIN_VECTOR_SIM);
+
     const seen = new Set();
     const merged = [];
-    
-    for (const row of [...textResults.rows, ...vectorResults.rows]) {
+    for (const row of [...textResults.rows, ...relevantVector]) {
       const key = row.content.substring(0, 100);
       if (!seen.has(key)) {
         seen.add(key);
@@ -149,7 +170,12 @@ async function searchRelevantContext(query, topK = 3) {
       }
     }
 
-    if (merged.length === 0) return '';
+    if (merged.length === 0) {
+      console.log(`[RAG] No relevant context | best vector sim: ${topSim.toFixed(3)} (floor ${MIN_VECTOR_SIM}) | best text rank: ${topRank.toFixed(3)}`);
+      return '';
+    }
+
+    console.log(`[RAG] Used ${merged.length} passage(s) | top vector sim: ${topSim.toFixed(3)} | top text rank: ${topRank.toFixed(3)}`);
 
     // Format as context string for injection into prompt
     return merged

@@ -13,9 +13,9 @@ async function extractImageInfo(imageBlock) {
   const res = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 700,
-    system: `You are a forensic image analyst specializing in South Asian (Bangladeshi) and global media.
+    system: `You are an image content analyst specializing in South Asian (Bangladeshi) and global media.
 
-Analyze the image and return ONLY valid JSON with no extra text:
+Extract all factual information from the image for fact-checking. Focus on WHAT the image says and claims, not whether the image itself has been edited or manipulated. Return ONLY valid JSON with no extra text:
 
 {
   "is_satirical": true | false,
@@ -26,7 +26,6 @@ Analyze the image and return ONLY valid JSON with no extra text:
   "date_clues": "Any dates, timestamps, event-related clues.",
   "tone": "One of: alarming | propaganda | misleading | satire | meme | neutral | celebratory | violent",
   "source": "News logos, TV channel watermarks, website names, social media platform UI elements.",
-  "manipulation": "AI generation signs, photo editing artifacts, splicing, unnatural lighting. Or 'None detected'.",
   "key_claim": "The single core factual claim this image is asserting or implying. Be specific.",
   "search_query": "The single best English-language Google search query to fact-check this image's key claim."
 }`,

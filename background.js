@@ -42,15 +42,18 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       return;
     }
 
+    // Generate a unique request ID so concurrent fact-checks don't clobber each other
+    const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
     // Show loading UI, inject scripts dynamically if they are missing (common after extension reload)
     try {
-      await chrome.tabs.sendMessage(tab.id, { action: "showLoading" });
+      await chrome.tabs.sendMessage(tab.id, { action: "showLoading", requestId });
     } catch (e) {
       console.warn("Content script disconnected or missing. Injecting dynamically...", e);
       try {
         await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["content.css"] });
         await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
-        await chrome.tabs.sendMessage(tab.id, { action: "showLoading" });
+        await chrome.tabs.sendMessage(tab.id, { action: "showLoading", requestId });
       } catch (injectionError) {
         console.error("Failed to inject UI:", injectionError);
         return; // Abort if we literally can't show the UI
@@ -99,22 +102,32 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       delete historyItem.base64; 
       saveToHistory(historyItem);
 
-      // Send result back to content script
+      // Send result back to content script.
+      // IMPORTANT: Do NOT include payload.base64 here — large base64 strings
+      // (multi-MB images) exceed Chrome's message-passing size limits and cause
+      // the message to silently fail, leaving the UI stuck on "loading".
+      // The base64 is only needed for the feedback flow; store it separately.
+      if (payload.base64) {
+        // Persist the base64 keyed by requestId so the feedback form can retrieve it
+        chrome.storage.session.set({ [`fb64_${requestId}`]: payload.base64 }).catch(() => {});
+      }
       chrome.tabs.sendMessage(tab.id, { 
         action: "showResult", 
+        requestId,
         result: {
           ...result,
           originalType: payload.type,
           originalContent: payload.content,
-          originalBase64: payload.base64
+          requestId
         }
-      }).catch(e => console.error(e));
+      }).catch(e => console.error("sendMessage failed:", e));
     } catch (error) {
       console.error(error);
       chrome.tabs.sendMessage(tab.id, { 
-        action: "showResult", 
+        action: "showResult",
+        requestId,
         result: { verdict: "Error", explanation: "Failed to connect to backend.", sources: [] }
-      }).catch(e => console.error(e));
+      }).catch(e => console.error("sendMessage failed:", e));
     }
   }
 });
@@ -130,12 +143,24 @@ function saveToHistory(item) {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "submitFeedback") {
-    getBackendBaseUrl()
-      .then((baseUrl) => fetch(buildBackendUrl(baseUrl, "/feedback"), {
+    (async () => {
+      const feedbackPayload = { ...request.payload };
+      // Resolve the image base64 from session storage if a requestId was provided
+      if (feedbackPayload.requestId) {
+        const key = `fb64_${feedbackPayload.requestId}`;
+        try {
+          const stored = await chrome.storage.session.get(key);
+          feedbackPayload.base64 = stored[key] || "";
+          chrome.storage.session.remove(key).catch(() => {});
+        } catch { feedbackPayload.base64 = ""; }
+        delete feedbackPayload.requestId;
+      }
+      const baseUrl = await getBackendBaseUrl();
+      fetch(buildBackendUrl(baseUrl, "/feedback"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(request.payload)
-      }))
-      .catch(e => console.error("Ext Fetch Error:", e));
+        body: JSON.stringify(feedbackPayload)
+      }).catch(e => console.error("Ext Fetch Error:", e));
+    })();
   }
 });

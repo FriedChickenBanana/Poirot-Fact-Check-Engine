@@ -1,7 +1,19 @@
+// Track the latest requestId so only the most recent fact-check controls the UI.
+// Without this, concurrent or rapid-fire fact-checks can cause a late "showLoading"
+// from request B to overwrite the completed result of request A.
+let _activeRequestId = null;
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "showLoading") {
+    _activeRequestId = request.requestId || null;
     createOrUpdatePopup({ verdict: "Analyzing...", explanation: "Poirot agents are checking facts...", loading: true });
   } else if (request.action === "showResult") {
+    // Only render if this result matches the latest request (or if IDs aren't available)
+    if (_activeRequestId && request.requestId && request.requestId !== _activeRequestId) {
+      console.log("[Poirot] Ignoring stale result for request", request.requestId);
+      return;
+    }
+    _activeRequestId = null;
     createOrUpdatePopup(request.result);
   }
 });
@@ -112,22 +124,9 @@ function createOrUpdatePopup(data) {
       </div>`;
   }
 
-  // Deepfake forensics (image only)
+  // Deepfake forensics section removed — image fact-checking now focuses on
+  // verifying the informational content of images, not pixel-level manipulation.
   let deepfakeHtml = "";
-  if (data.deepfake_probability !== undefined) {
-    const dpColor = data.deepfake_probability > 70 ? '#ef4444' : data.deepfake_probability > 40 ? '#f59e0b' : '#22c55e';
-    deepfakeHtml = `
-      <div class="misinfo-findings" style="margin-top:8px;">
-        <div class="misinfo-section-title">🔬 Image Forensics</div>
-        <div class="misinfo-metrics" style="margin-top:4px;">
-          <div class="misinfo-metric">
-            <span class="metric-label">Deepfake Probability</span>
-            <span class="metric-value" style="color:${dpColor}">${data.deepfake_probability}%</span>
-          </div>
-        </div>
-        ${data.forensic_flags?.length ? `<div style="font-size:11px;color:#9494a8;margin-top:4px;">${data.forensic_flags.join(' • ')}</div>` : ''}
-      </div>`;
-  }
 
   // Digital literacy tip
   let literacyHtml = "";
@@ -210,7 +209,7 @@ function createOrUpdatePopup(data) {
       const payload = {
         type: data.originalType || "text",
         content: data.originalContent || "",
-        base64: data.originalBase64 || "",
+        requestId: data.requestId || "",
         verdict: data.verdict,
         explanation: data.explanation,
         feedbackIsPositive: isPositive,

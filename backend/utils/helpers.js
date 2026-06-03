@@ -78,6 +78,49 @@ function extractJson(text) {
   throw new Error('No JSON found in response');
 }
 
+// ─── Repair a truncated JSON object (max_tokens cutoff) ────────────────────
+// Best-effort: strips code fences, then closes any string/array/object left
+// open by the cutoff so the partial verdict can still be parsed.
+function repairTruncatedJson(text) {
+  let raw = String(text || '').replace(/```(?:json)?/gi, '');
+  const start = raw.indexOf('{');
+  if (start === -1) return null;
+  raw = raw.slice(start);
+
+  const stack = [];
+  let inString = false;
+  let escape = false;
+  let out = '';
+
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    out += ch;
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') stack.push('}');
+    else if (ch === '[') stack.push(']');
+    else if (ch === '}' || ch === ']') stack.pop();
+  }
+
+  // Close a string left open by the cutoff (drop a dangling escape first).
+  if (inString) {
+    if (out.endsWith('\\')) out = out.slice(0, -1);
+    out += '"';
+  }
+  // Drop a trailing comma/colon that would otherwise expect another value.
+  out = out.replace(/[,:]\s*$/, '');
+  // Close every still-open array/object, innermost first.
+  while (stack.length) out += stack.pop();
+
+  try {
+    return JSON.parse(out);
+  } catch {
+    return null;
+  }
+}
+
 // ─── Collect URLs from web_search_tool_result blocks ──────────────────────
 function collectUrls(content) {
   const urls = [];
@@ -92,5 +135,6 @@ function collectUrls(content) {
 module.exports = {
   buildImageBlock,
   extractJson,
+  repairTruncatedJson,
   collectUrls
 };

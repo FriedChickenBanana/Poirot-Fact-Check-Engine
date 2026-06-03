@@ -348,15 +348,9 @@ document.getElementById('verify-submit')?.addEventListener('click', async () => 
       literacyTipEl.style.display = 'none';
     }
 
-    // Image Forensics
+    // Image Forensics (removed — image fact-checking now focuses on content verification)
     const forensicsBox = document.getElementById('forensics-box');
-    if (verifyType === 'image' && data.deepfake_probability !== undefined) {
-      document.getElementById('forensics-prob').textContent = `${data.deepfake_probability}%`;
-      document.getElementById('forensics-flags').textContent = data.forensic_flags && data.forensic_flags.length > 0 ? data.forensic_flags.join(' • ') : 'No anomalies detected';
-      forensicsBox.style.display = 'block';
-    } else {
-      forensicsBox.style.display = 'none';
-    }
+    if (forensicsBox) forensicsBox.style.display = 'none';
 
     // Findings
     const findingsEl = document.getElementById('result-findings');

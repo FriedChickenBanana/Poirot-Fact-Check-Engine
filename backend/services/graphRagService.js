@@ -104,23 +104,37 @@ async function saveToGraph(text, sourceUrl = '') {
 }
 
 // ── 3. Retrieve Graph Context (AutoLlama Contextual Retrieval) ─────────────
+const MIN_ENTITY_SIM = 0.45; // cosine floor — without it, the topK nearest entities
+                             // are returned even when completely unrelated, which
+                             // injected noise and used to suppress fresh web search.
+
 async function retrieveGraphContext(query, topK = 3) {
   try {
     const queryVector = await textToSimpleVector(query);
     const vectorStr = `[${queryVector.join(',')}]`;
 
-    // Step 1: Find most relevant entities via vector similarity
+    // Step 1: Find the nearest entities (unfiltered so we can log the actual
+    // best similarity), then apply the relevance floor in JS.
     const entityRes = await pool.query(
       `SELECT id, name, type, description, 1 - (embedding <=> $1::vector) as similarity
        FROM entities
+       WHERE embedding IS NOT NULL
        ORDER BY embedding <=> $1::vector
        LIMIT $2`,
       [vectorStr, topK]
     );
 
-    if (entityRes.rows.length === 0) return '';
+    const topSim = Math.max(0, ...entityRes.rows.map(r => Number(r.similarity) || 0));
+    const entities = entityRes.rows.filter(r => (Number(r.similarity) || 0) >= MIN_ENTITY_SIM);
 
-    const entityIds = entityRes.rows.map(r => r.id);
+    if (entities.length === 0) {
+      console.log(`[GraphRAG] No relevant entities | best sim: ${topSim.toFixed(3)} (floor ${MIN_ENTITY_SIM})`);
+      return '';
+    }
+
+    console.log(`[GraphRAG] Retrieved ${entities.length} entity(ies) | top sim: ${topSim.toFixed(3)}`);
+
+    const entityIds = entities.map(r => r.id);
     const placeholders = entityIds.map((_, i) => `$${i + 1}`).join(',');
 
     // Step 2: Retrieve 1-hop relationships for these entities
@@ -141,7 +155,7 @@ async function retrieveGraphContext(query, topK = 3) {
 
     // Step 3: Format the context
     let context = '== GRAPH RAG ENTITIES ==\n';
-    entityRes.rows.forEach(e => {
+    entities.forEach(e => {
       context += `- ${e.name} (${e.type}): ${e.description}\n`;
     });
 
