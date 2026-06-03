@@ -7,6 +7,59 @@ const { saveToGraph } = require('../services/graphRagService');
 const { computeTrustScore, updateSourceProfile } = require('../services/trustScoringService');
 const { logVerification } = require('../services/analyticsService');
 
+// ── Language / verdict helpers (adopted from the reference backend, de-duped) ──
+const BANGLA_FALLBACK = {
+  explanation: 'বাংলা আউটপুট পাওয়া যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।',
+  finding: 'বাংলা ব্যাখ্যা পাওয়া যায়নি।',
+};
+
+// Caller's explicit language choice: 'en' | 'bn', or null for Auto (let the
+// orchestrator auto-detect). Reads either `language` or `uiLanguage`.
+function resolveLanguageOverride(body) {
+  const v = (body.language || body.uiLanguage || '').toLowerCase();
+  return v === 'bn' || v === 'en' ? v : null;
+}
+
+// Stable language tag for the cache key so EN / BN / Auto cache separately.
+function cacheLanguage(body) {
+  return resolveLanguageOverride(body) || 'auto';
+}
+
+// Map any verdict string (English or Bangla) to a machine-readable code the
+// frontend keys colours / text-to-speech off.
+function normalizeVerdictCode(verdict) {
+  const v = (verdict || '').toLowerCase();
+  if (v.includes('satir') || v.includes('ব্যঙ্গ')) return 'satirical';
+  if (v.includes('false') || v.includes('মিথ্যা')) return 'false';
+  if (v.includes('true') || v.includes('সত্য')) return 'true';
+  if (v.includes('error') || v.includes('ত্রুটি')) return 'error';
+  return 'uncertain';
+}
+
+// OK unless the text is Latin-bearing with no Bengali script at all.
+function isBanglaText(text) {
+  const value = text || '';
+  const hasBengali = /[ঀ-৿]/.test(value);
+  const hasLatin = /[A-Za-z]/.test(value);
+  return !(hasLatin && !hasBengali);
+}
+
+// Safety net when the caller demanded Bangla: if the model didn't actually
+// produce Bangla, downgrade to an Uncertain Bangla fallback (keeps other fields).
+function enforceBanglaOutput(result) {
+  const explanationOk = isBanglaText(result.explanation || '');
+  const findings = Array.isArray(result.key_findings) ? result.key_findings : [];
+  const findingsOk = findings.every(isBanglaText);
+  if (explanationOk && findingsOk) return result;
+  return {
+    ...result,
+    verdict: 'Uncertain',
+    verdict_code: 'uncertain',
+    explanation: BANGLA_FALLBACK.explanation,
+    key_findings: [BANGLA_FALLBACK.finding],
+  };
+}
+
 async function verifyFactCheck(req, res, next) {
   const t0 = Date.now();
   try {
@@ -18,14 +71,19 @@ async function verifyFactCheck(req, res, next) {
     // downstream so .substring()/.trim() never throw on undefined.
     const safeContent = content || '';
 
+    // Caller's language preference: explicit 'en'/'bn' steers the verdict prompt
+    // and triggers Bangla enforcement; 'auto'/absent keeps auto-detection.
+    const langOverride = resolveLanguageOverride(req.body);
+    const cacheOpts = { language: cacheLanguage(req.body) };
+
     // ── Step 0: Cache check (Token Optimization) ────────────────────────
     let cacheKey = safeContent;
     if (type === 'image' && base64) {
       // Hash the base64 to ensure we don't re-process the same image pixels
       cacheKey = crypto.createHash('sha256').update(base64).digest('hex');
     }
-    
-    const cached = await getCached(type, cacheKey);
+
+    const cached = await getCached(type, cacheKey, cacheOpts);
     if (cached) {
       console.log(`[Cache HIT] ${Date.now() - t0}ms`);
       return res.json({ ...cached, cached: true });
@@ -40,13 +98,21 @@ async function verifyFactCheck(req, res, next) {
     // GraphRAG): it runs those lookups against the *extracted* claim after the
     // vision/classify step, not the raw image URL, and skips them entirely on a
     // satire short-circuit. See agentOrchestrator.orchestrate().
-    const result = await orchestrate({
+    let result = await orchestrate({
       type,
       content: queryContent,
       base64,
       imageBlock,
       persona,
+      language: langOverride,
     });
+
+    // ── Step 5.5: Frontend contract — machine-readable verdict code, and a
+    // Bangla safety net when the caller explicitly asked for Bangla. ────────
+    result.verdict_code = normalizeVerdictCode(result.verdict);
+    if (langOverride === 'bn') {
+      result = enforceBanglaOutput(result);
+    }
 
     // ── Step 6: Compute trust score ────────────────────────────────────
     const claimHash = crypto.createHash('sha256').update(`${type}:${cacheKey.trim()}`).digest('hex');
@@ -76,7 +142,7 @@ async function verifyFactCheck(req, res, next) {
     Promise.allSettled([
       updateSourceProfile(result.sources, result.verdict),
       learnText ? learnFromVerification(learnText.substring(0, 500), result.verdict, result.sources) : Promise.resolve(),
-      setCached(type, cacheKey, result),
+      setCached(type, cacheKey, result, cacheOpts),
       (learnText && (result.verdict === 'Likely True' || result.verdict === 'Likely False'))
         ? saveToGraph(learnText, result.sources?.[0])
         : Promise.resolve(),

@@ -11,16 +11,23 @@ function getRedis() {
   return redis;
 }
 
-function cacheKey(type, content) {
-  const hash = crypto.createHash('sha256').update(`${type}:${content.trim()}`).digest('hex');
+// `options.language` ('en' | 'bn' | 'auto') and `options.lowBandwidth` are folded
+// into the key so different output languages cache separately and never collide.
+function cacheKey(type, content, options = {}) {
+  const language = options.language || 'en';
+  const lowBandwidth = options.lowBandwidth ? '1' : '0';
+  const hash = crypto
+    .createHash('sha256')
+    .update(`${type}:${content.trim()}:${language}:${lowBandwidth}`)
+    .digest('hex');
   return `verify:${hash}`;
 }
 
 const TTL_SECONDS = 86400; // 24 hours
 
-async function getCached(type, content) {
+async function getCached(type, content, options = {}) {
   try {
-    const val = await getRedis().get(cacheKey(type, content));
+    const val = await getRedis().get(cacheKey(type, content, options));
     return val ? JSON.parse(val) : null;
   } catch (err) {
     console.warn('[Redis] GET failed:', err.message);
@@ -28,9 +35,9 @@ async function getCached(type, content) {
   }
 }
 
-async function setCached(type, content, result) {
+async function setCached(type, content, result, options = {}) {
   try {
-    await getRedis().set(cacheKey(type, content), JSON.stringify(result), 'EX', TTL_SECONDS);
+    await getRedis().set(cacheKey(type, content, options), JSON.stringify(result), 'EX', TTL_SECONDS);
   } catch (err) {
     console.warn('[Redis] SET failed:', err.message);
   }

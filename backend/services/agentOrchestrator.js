@@ -218,7 +218,7 @@ function satiricalResult(explanation, finding, reasoning, agents, t0, language, 
 // ══════════════════════════════════════════════════════════════════════════
 // MAIN ORCHESTRATOR — coordinates all agents
 // ══════════════════════════════════════════════════════════════════════════
-async function orchestrate({ type, content, base64, imageBlock, persona }) {
+async function orchestrate({ type, content, base64, imageBlock, persona, language: languageOverride }) {
   const tokens = { count: 0 };
   const t0 = Date.now();
   const agents = [];
@@ -267,6 +267,12 @@ async function orchestrate({ type, content, base64, imageBlock, persona }) {
         agents, t0, language, tokens
       );
     }
+  }
+
+  // Honor an explicit UI language choice; 'auto'/absent leaves auto-detection in
+  // place. This only steers the verdict prompt + returned language — not routing.
+  if (languageOverride === 'bn' || languageOverride === 'en') {
+    language = languageOverride;
   }
 
   // Step 3: Claim decomposition for complex claims (HAIKU — ~$0.0003)
