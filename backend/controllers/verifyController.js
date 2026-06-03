@@ -36,27 +36,20 @@ function normalizeVerdictCode(verdict) {
   return 'uncertain';
 }
 
-// OK unless the text is Latin-bearing with no Bengali script at all.
-function isBanglaText(text) {
-  const value = text || '';
-  const hasBengali = /[ঀ-৿]/.test(value);
-  const hasLatin = /[A-Za-z]/.test(value);
-  return !(hasLatin && !hasBengali);
-}
-
-// Safety net when the caller demanded Bangla: if the model didn't actually
-// produce Bangla, downgrade to an Uncertain Bangla fallback (keeps other fields).
+// Bangla safety net — NON-DESTRUCTIVE by design: it never overrides a real
+// verdict, confidence, sources, or findings just because text came back in the
+// wrong language (that would cost accuracy). The verdict prompt already requests
+// Bangla when bn is selected; this only fills a Bangla notice if the explanation
+// is genuinely empty.
 function enforceBanglaOutput(result) {
-  const explanationOk = isBanglaText(result.explanation || '');
-  const findings = Array.isArray(result.key_findings) ? result.key_findings : [];
-  const findingsOk = findings.every(isBanglaText);
-  if (explanationOk && findingsOk) return result;
+  const hasExplanation = (result.explanation || '').trim().length > 0;
+  if (hasExplanation) return result;
   return {
     ...result,
-    verdict: 'Uncertain',
-    verdict_code: 'uncertain',
     explanation: BANGLA_FALLBACK.explanation,
-    key_findings: [BANGLA_FALLBACK.finding],
+    key_findings: (result.key_findings && result.key_findings.length)
+      ? result.key_findings
+      : [BANGLA_FALLBACK.finding],
   };
 }
 

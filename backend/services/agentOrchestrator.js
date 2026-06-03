@@ -226,6 +226,9 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
   let classification = null;
   let extracted = null;
   let language = 'en';
+  // Explicit UI language ('en'/'bn') wins over auto-detection everywhere,
+  // including the satire early-exits below. 'auto'/absent keeps detection.
+  const hasLangOverride = languageOverride === 'bn' || languageOverride === 'en';
 
   // ── Step 1: Preprocess by type ──────────────────────────────────────────
   if (type === 'image' && imageBlock) {
@@ -243,7 +246,7 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
           extracted.satirical_reason || 'Satirical/meme content detected.',
           'Image identified as satire or meme content',
           'Image classified as satirical by vision agent',
-          agents, t0, detectLanguage(extracted.visible_text), tokens
+          agents, t0, hasLangOverride ? languageOverride : detectLanguage(extracted.visible_text), tokens
         );
       }
       language = detectLanguage(extracted?.visible_text);
@@ -254,7 +257,7 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
     // Text: classify language, satire, category, and an optimized search query.
     classification = await classifyClaim(content, type, tokens);
     agents.push('classifier');
-    language = classification.lang || 'en';
+    language = hasLangOverride ? languageOverride : (classification.lang || 'en');
     console.log(`[Agent:Classify] ${Date.now() - t0}ms`, JSON.stringify(classification));
 
     if (classification.is_satire) {
@@ -269,11 +272,9 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
     }
   }
 
-  // Honor an explicit UI language choice; 'auto'/absent leaves auto-detection in
-  // place. This only steers the verdict prompt + returned language — not routing.
-  if (languageOverride === 'bn' || languageOverride === 'en') {
-    language = languageOverride;
-  }
+  // Catch the image non-satire path too (the satire exits already applied it).
+  // Only steers the verdict prompt + returned language — never routing.
+  if (hasLangOverride) language = languageOverride;
 
   // Step 3: Claim decomposition for complex claims (HAIKU — ~$0.0003)
   const textContent = extracted?.key_claim || content;
