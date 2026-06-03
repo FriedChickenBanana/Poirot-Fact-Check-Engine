@@ -123,6 +123,7 @@ async function scrapeFeed(feed) {
         sourceName: feed.name,
         language: feed.lang,
         metadata: { scraped: true, pubDate: item.pubDate, feed: feed.name },
+        quiet: true, // the scraper logs its own per-feed aggregate
       });
       saved++;
     }

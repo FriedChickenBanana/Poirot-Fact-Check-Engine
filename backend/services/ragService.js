@@ -86,10 +86,12 @@ async function textToSimpleVector(text, dimensions = 1024) {
 }
 
 // ── Add content to knowledge base ────────────────────────────────────────
-async function addToKnowledgeBase({ content, contentType, sourceUrl, sourceName, language, metadata }) {
+// Pass `quiet: true` for bulk inserts (e.g. the RSS scraper) which log their
+// own aggregate; the per-row log is only useful for one-off verify-time saves.
+async function addToKnowledgeBase({ content, contentType, sourceUrl, sourceName, language, metadata, quiet }) {
   const embedding = await textToSimpleVector(content);
   const vectorStr = `[${embedding.join(',')}]`;
-  
+
   try {
     const res = await pool.query(
       `INSERT INTO knowledge_base (content, content_type, source_url, source_name, language, embedding, metadata)
@@ -97,10 +99,8 @@ async function addToKnowledgeBase({ content, contentType, sourceUrl, sourceName,
        ON CONFLICT DO NOTHING`,
       [content, contentType || 'fact', sourceUrl, sourceName, language || 'en', vectorStr, JSON.stringify(metadata || {})]
     );
-    if (res.rowCount > 0) {
+    if (!quiet && res.rowCount > 0) {
       console.log(`[RAG] Saved 1 ${contentType || 'fact'} to knowledge base`);
-    } else {
-      console.log('[RAG] Skipped duplicate (already in knowledge base)');
     }
   } catch (err) {
     console.warn('[RAG] Insert failed:', err.message);
