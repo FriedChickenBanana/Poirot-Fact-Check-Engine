@@ -6,6 +6,7 @@ const { learnFromVerification } = require('../services/ragService');
 const { saveToGraph } = require('../services/graphRagService');
 const { computeTrustScore, updateSourceProfile } = require('../services/trustScoringService');
 const { logVerification } = require('../services/analyticsService');
+const { extractFromSocialMedia } = require('../services/socialMediaService');
 
 // ── Language / verdict helpers (adopted from the reference backend, de-duped) ──
 const BANGLA_FALLBACK = {
@@ -23,6 +24,12 @@ function resolveLanguageOverride(body) {
 // Stable language tag for the cache key so EN / BN / Auto cache separately.
 function cacheLanguage(body) {
   return resolveLanguageOverride(body) || 'auto';
+}
+
+// Does the text look like a social-media post URL we should try to scrape?
+function isSocialMediaLink(text) {
+  const re = /(?:https?:\/\/)?(?:www\.)?(?:twitter\.com|x\.com|facebook\.com|instagram\.com|tiktok\.com|youtube\.com|linkedin\.com|reddit\.com|threads\.net)\//i;
+  return re.test(text || '');
 }
 
 // Map any verdict string (English or Bangla) to a machine-readable code the
@@ -56,18 +63,45 @@ function enforceBanglaOutput(result) {
 async function verifyFactCheck(req, res, next) {
   const t0 = Date.now();
   try {
-    const { type, content, persona = 'General Public', base64 } = req.body;
+    // type/content are mutable: a social-media link is scraped into a text claim.
+    let { type, content } = req.body;
+    const { persona = 'General Public', base64 } = req.body;
     if (!content && !base64) {
       return res.status(400).json({ verdict: 'Error', explanation: 'No content provided.' });
     }
-    // Image-only requests carry no text `content`. Use a safe string everywhere
-    // downstream so .substring()/.trim() never throw on undefined.
-    const safeContent = content || '';
 
     // Caller's language preference: explicit 'en'/'bn' steers the verdict prompt
     // and triggers Bangla enforcement; 'auto'/absent keeps auto-detection.
     const langOverride = resolveLanguageOverride(req.body);
     const cacheOpts = { language: cacheLanguage(req.body) };
+
+    // ── Social-media link → scrape the post text, then verify it as a normal
+    // text claim. Best-effort: extraction never throws, and on failure we return
+    // a clean Uncertain response rather than fact-checking a raw URL. ─────────
+    if (type === 'social-media' || (type === 'text' && isSocialMediaLink(content))) {
+      const socialUrl = req.body.url || content;
+      const extractedText = await extractFromSocialMedia(socialUrl);
+      if (extractedText) {
+        console.log('[Social] Extracted claim text from link');
+        content = extractedText;
+        type = 'text';
+      } else {
+        return res.json({
+          verdict: 'Uncertain',
+          verdict_code: 'uncertain',
+          confidence: 0,
+          explanation: langOverride === 'bn'
+            ? 'এই লিংক থেকে কনটেন্ট বের করা যায়নি।'
+            : 'Could not extract content from this link.',
+          key_findings: [],
+          sources: [],
+        });
+      }
+    }
+
+    // Image-only requests carry no text `content`. Use a safe string everywhere
+    // downstream so .substring()/.trim() never throw on undefined.
+    const safeContent = content || '';
 
     // ── Step 0: Cache check (Token Optimization) ────────────────────────
     let cacheKey = safeContent;
