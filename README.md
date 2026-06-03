@@ -19,11 +19,12 @@ Poirot is an AI-native, multi-agent fact-checking engine built to protect inform
 
 Poirot follows a modern, scalable, and cost-effective AI architecture:
 
-1.  **Chrome Extension (Frontend)**: Manifest V3 extension capturing claims/images and displaying contextual UI.
-2.  **Web Dashboard (Frontend)**: Real-time analytics built with HTML/CSS/JS (vanilla) and Chart.js.
-3.  **Express Backend**: Node.js API orchestrating agents, managing database connections, and serving the dashboard.
-4.  **Database Layer (Neon DB)**: PostgreSQL 15+ utilizing PGVector for RAG and complex recursive queries for Trust Scoring.
-5.  **Caching & Rate Limiting (Redis/Upstash)**: Upstash Redis for response caching and tiered API rate limiting.
+1.  **Chrome Extension (Frontend)**: Manifest V3 extension (vanilla JS) capturing claims/images and displaying contextual UI.
+2.  **Verification Web App (Frontend)**: React 19 + Vite + Tailwind v4 single-page "Verification Console" in [`frontend/`](frontend/) — text / image / social-link checks with an EN/BN UI and text-to-speech. Talks to the backend over `POST /verify`.
+3.  **Analytics Dashboard (Frontend)**: Real-time analytics built with HTML/CSS/JS (vanilla) and Chart.js, served by the backend at `/`.
+4.  **Express Backend**: Node.js API orchestrating agents, managing database connections, and serving the dashboard.
+5.  **Database Layer (Neon DB)**: PostgreSQL 15+ utilizing PGVector for RAG and complex recursive queries for Trust Scoring.
+6.  **Caching & Rate Limiting (Redis/Upstash)**: Upstash Redis for response caching and tiered API rate limiting.
 
 ### The 5-Agent Pipeline
 
@@ -32,7 +33,7 @@ To minimize costs while maintaining high accuracy, Poirot routes tasks to the mo
 1.  **Classifier (Haiku 4.5)**: Language detection, categorization, and early satire detection. (~$0.0002/call)
 2.  **Extractor (Haiku 4.5 Vision)**: Extracts text, tone, and metadata from images. (~$0.001/call)
 3.  **Decomposer (Haiku 4.5)**: Breaks complex claims into verifiable sub-claims. (~$0.0003/call)
-4.  **Verdict Engine (Sonnet 4.6)**: The core engine. Uses web search and RAG context to synthesize a final verdict, including inline source-bias flags. (~$0.02/call)
+4.  **Verdict Engine (Haiku 4.5 + web search)**: The core engine. Runs one web search and synthesizes the final verdict from web + RAG/GraphRAG context, with inline source-bias flags. Defaults to Haiku for cost/latency (keeps the round-trip under the extension's ~30s limit); a strong Google Fact Check match skips web search entirely.
 5.  **Bias Flags (inline)**: Source bias and framing flags are produced directly by the Verdict Engine — no separate model call — keeping latency and cost down.
 
 ---
@@ -73,6 +74,17 @@ The dashboard will be available at `http://localhost:3000`.
 1. Open Chrome and navigate to `chrome://extensions/`
 2. Enable **Developer mode**
 3. Click **Load unpacked** and select the root project folder.
+
+### 4. Web App (SPA) Setup
+The React verification console lives in [`frontend/`](frontend/) and is fully decoupled from the backend (it only calls `POST /verify`).
+```bash
+cd frontend
+npm install
+echo "VITE_BACKEND_BASE_URL=http://localhost:3000" > .env   # defaults to localhost:3000 if unset
+npm run dev      # dev server at http://localhost:5173
+npm run build    # production build → frontend/dist (deploy as static files)
+```
+Set `VITE_BACKEND_BASE_URL` to your deployed backend for production builds. The backend CORS allowlist already permits `localhost`, `ngrok`, and `onrender.com` origins.
 
 ---
 
@@ -115,6 +127,13 @@ Poirot offers a RESTful API for integrating fact-checking into platforms.
   "latency_ms": 4200
 }
 ```
+
+### Internal `/verify` contract (Extension + Web App)
+The `POST /verify` route used by the extension and the React web app accepts a few extra fields beyond the enterprise endpoint:
+
+- **Request**: `type` is one of `text` | `image` | `social-media`; optional `language` (`en` | `bn` | `auto`) steers the verdict's output language; `base64` for images; `url` for social links.
+- **`social-media`**: a pasted X / Facebook / Instagram / TikTok / YouTube / Reddit / LinkedIn / Threads URL is scraped (auth-free oEmbed/`.json` first, then Open Graph) into a text claim, then verified. Best-effort — on failure it returns a clean `Uncertain`, never a raw-URL check.
+- **Response**: adds `verdict_code` (`true` | `false` | `uncertain` | `satirical` | `error`) for UI colour-coding / text-to-speech, plus `trust_score`, `bias_flags`, `reasoning_chain`, and `literacy_tip`.
 
 ---
 
