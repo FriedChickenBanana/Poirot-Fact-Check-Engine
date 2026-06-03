@@ -4,24 +4,24 @@ const { getCached, setCached } = require('../services/cacheService');
 const { queryGoogleFactCheck } = require('../services/factCheckService');
 const { extractFromSocialMedia } = require('../services/socialMediaService');
 
-const LANGUAGE_TEXT = {
-  en: {
-    noContent: 'No content provided.',
-    satiricalExplanation: 'This appears to be satirical or meme content.',
-    satiricalFinding: 'Content identified as satire or humor, not a factual claim.',
-    parseError: 'Could not parse response.',
-    missingBangla: 'Bangla output was not returned. Please try again.',
-    missingBanglaFinding: 'No Bangla explanation was produced.'
-  },
-  bn: {
-    noContent: 'কোনো কনটেন্ট দেওয়া হয়নি।',
-    satiricalExplanation: 'এটি ব্যঙ্গাত্মক বা মিম কনটেন্ট বলে মনে হচ্ছে।',
-    satiricalFinding: 'কনটেন্টটি ব্যঙ্গ/রসাত্মক হিসেবে শনাক্ত হয়েছে, এটি তথ্যভিত্তিক দাবি নয়।',
-    parseError: 'রেসপন্স পার্স করা যায়নি।',
-    missingBangla: 'বাংলা আউটপুট পাওয়া যায়নি। আবার চেষ্টা করুন।',
-    missingBanglaFinding: 'বাংলা ব্যাখ্যা পাওয়া যায়নি।'
-  }
-};
+// const LANGUAGE_TEXT = {
+//   en: {
+//     noContent: 'No content provided.',
+//     satiricalExplanation: 'This appears to be satirical or meme content.',
+//     satiricalFinding: 'Content identified as satire or humor, not a factual claim.',
+//     parseError: 'Could not parse response.',
+//     missingBangla: 'Bangla output was not returned. Please try again.',
+//     missingBanglaFinding: 'No Bangla explanation was produced.'
+//   },
+//   bn: {
+//     noContent: 'কোনো কনটেন্ট দেওয়া হয়নি।',
+//     satiricalExplanation: 'এটি ব্যঙ্গাত্মক বা মিম কনটেন্ট বলে মনে হচ্ছে।',
+//     satiricalFinding: 'কনটেন্টটি ব্যঙ্গ/রসাত্মক হিসেবে শনাক্ত হয়েছে, এটি তথ্যভিত্তিক দাবি নয়।',
+//     parseError: 'রেসপন্স পার্স করা যায়নি।',
+//     missingBangla: 'বাংলা আউটপুট পাওয়া যায়নি। আবার চেষ্টা করুন।',
+//     missingBanglaFinding: 'বাংলা ব্যাখ্যা পাওয়া যায়নি।'
+//   }
+// };
 
 function normalizeLanguage(value) {
   return value === 'bn' ? 'bn' : 'en';
