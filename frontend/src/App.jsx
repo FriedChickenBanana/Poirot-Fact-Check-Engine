@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { I18N, t, normalizeVerdictCode, speakVerdict, isSocialMediaLink, isValidUrl } from './i18n'
 
-const DEFAULT_BACKEND_BASE_URL = 'http://localhost:3000'
+const DEFAULT_BACKEND_BASE_URL = 'https://poirot-fact-check-engine.onrender.com'
 const DEFAULT_LANGUAGE_MODE = 'auto'
 
 function normalizeBaseUrl(value) {
