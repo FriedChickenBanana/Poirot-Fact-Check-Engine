@@ -1,4 +1,4 @@
-const DEFAULT_BACKEND_BASE_URL = "http://localhost:3000";
+const DEFAULT_BACKEND_BASE_URL = "https://poirot-fact-check-engine.onrender.com";
 
 function normalizeBaseUrl(value) {
   const trimmed = (value || "").trim();

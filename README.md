@@ -70,10 +70,12 @@ npm run dev
 ```
 The dashboard will be available at `http://localhost:3000`.
 
+note : The backend is now hosted and these steps are only required if you want to run the backend locally. If you do want to run the backend locally, change base URL in extension/background.js to `http://localhost:3000`.
+
 ### 3. Extension Setup
 1. Open Chrome and navigate to `chrome://extensions/`
 2. Enable **Developer mode**
-3. Click **Load unpacked** and select the root project folder.
+3. Click **Load unpacked** and select the extension folder.
 
 ### 4. Web App (SPA) Setup
 The React verification console lives in [`frontend/`](frontend/) and is fully decoupled from the backend (it only calls `POST /verify`).
