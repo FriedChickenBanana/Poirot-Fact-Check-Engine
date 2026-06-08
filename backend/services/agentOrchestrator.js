@@ -16,7 +16,7 @@
 // ══════════════════════════════════════════════════════════════════════════
 
 const { Anthropic } = require('@anthropic-ai/sdk');
-const { extractJson, repairTruncatedJson, collectUrls } = require('../utils/helpers');
+const { extractJson, repairTruncatedJson, collectUrls, stripCitations } = require('../utils/helpers');
 const { searchRelevantContext } = require('./ragService');
 const { queryGoogleFactCheck } = require('./factCheckService');
 const { retrieveGraphContext } = require('./graphRagService');
@@ -33,11 +33,12 @@ const MODELS = {
 async function classifyClaim(content, type, tokens) {
   const res = await anthropic.messages.create({
     model: MODELS.CHEAP,
-    max_tokens: 200,
+    max_tokens: 400,
     messages: [{
       role: 'user',
-      content: `Classify this ${type} claim. Return ONLY JSON:
-{"lang":"en|bn|hi|other","is_satire":false,"category":"politics|health|science|tech|social|other","urgency":"low|medium|high","search_query":"best English search query to verify this"}
+      content: `Classify this ${type} claim AND break it into atomic verifiable sub-claims in ONE pass. Return ONLY JSON:
+{"lang":"ISO 639-1 code of the claim's language (e.g. en, bn, hi, ur, ar, es, fr)","is_satire":false,"category":"politics|health|science|tech|social|other","urgency":"low|medium|high","search_query":"best English search query to verify this","search_query_native":"best search query in the SAME language as the claim (copy search_query if the claim is already English)","sub_claims":["atomic claim 1","atomic claim 2"]}
+sub_claims: 1-3 atomic, independently verifiable statements. If the claim is already atomic, return it as the single element.
 
 Claim: "${typeof content === 'string' ? content.substring(0, 500) : 'image content'}"`,
     }],
@@ -49,7 +50,7 @@ Claim: "${typeof content === 'string' ? content.substring(0, 500) : 'image conte
   try {
     return extractJson(raw);
   } catch {
-    return { lang: 'en', is_satire: false, category: 'other', urgency: 'medium', search_query: content?.substring(0, 100) };
+    return { lang: 'en', is_satire: false, category: 'other', urgency: 'medium', search_query: content?.substring(0, 100), sub_claims: [content] };
   }
 }
 
@@ -57,7 +58,7 @@ Claim: "${typeof content === 'string' ? content.substring(0, 500) : 'image conte
 async function extractImageInfo(imageBlock, tokens) {
   const res = await anthropic.messages.create({
     model: MODELS.CHEAP,
-    max_tokens: 500,
+    max_tokens: 650,
     messages: [{
       role: 'user',
       content: [
@@ -65,7 +66,8 @@ async function extractImageInfo(imageBlock, tokens) {
         {
           type: 'text',
           text: `You are an Image Content Extraction Agent. Extract all factual information from this image for fact-checking. Focus on WHAT the image says and claims, not whether the image itself is edited or manipulated. Return ONLY JSON:
-{"is_satirical":false,"satirical_reason":null,"visible_text":"ALL text verbatim, preserve Bengali (বাংলা)","people":"names","location":"place","date_clues":"dates","tone":"alarming|propaganda|misleading|satire|meme|neutral","source":"logos/watermarks","key_claim":"core factual claim","search_query":"English search query to verify"}`
+{"is_satirical":false,"satirical_reason":null,"lang":"ISO 639-1 code of the visible text's language (e.g. en, bn, hi, ar)","visible_text":"ALL text verbatim, preserve Bengali (বাংলা)","people":"names","location":"place","date_clues":"dates","tone":"alarming|propaganda|misleading|satire|meme|neutral","source":"logos/watermarks","key_claim":"core factual claim","search_query":"English search query to verify","search_query_native":"search query in the SAME language as the visible text (copy search_query if it is English)","sub_claims":["atomic claim 1","atomic claim 2"]}
+sub_claims: 1-3 atomic, independently verifiable statements from the image. If there is a single claim, return it as the one element.`
         }
       ]
     }],
@@ -76,35 +78,10 @@ async function extractImageInfo(imageBlock, tokens) {
   return extractJson(raw);
 }
 
-// ── Agent 3: Claim Decomposition (HAIKU — for complex claims) ───────────────
-async function decomposeClaimIfComplex(content, tokens) {
-  // Only decompose if content is long (>200 chars) — saves tokens on simple claims
-  if (content.length < 200) {
-    return [content];
-  }
-
-  const res = await anthropic.messages.create({
-    model: MODELS.CHEAP,
-    max_tokens: 300,
-    messages: [{
-      role: 'user',
-      content: `Break this into 1-3 atomic verifiable sub-claims. Return ONLY a JSON array of strings.
-If it's already a single claim, return ["original claim"].
-
-Claim: "${content.substring(0, 800)}"`,
-    }],
-  });
-
-  const raw = res.content.find(b => b.type === 'text')?.text || '';
-  tokens.count += (res.usage?.input_tokens || 0) + (res.usage?.output_tokens || 0);
-
-  try {
-    const parsed = JSON.parse(raw.replace(/```json?\s*/g, '').replace(/```/g, '').trim());
-    return Array.isArray(parsed) ? parsed.slice(0, 3) : [content];
-  } catch {
-    return [content];
-  }
-}
+// ── Agent 3: Claim Decomposition — MERGED into Agent 1 (classifyClaim) for
+// text and Agent 2 (extractImageInfo) for images, so a single Haiku call now
+// returns both the classification and the atomic sub-claims. This removed one
+// LLM round-trip per verification (lower tokens + lower latency).
 
 // ── Agent 4: Evidence Gathering + Verdict (SONNET — web search) ─────────────
 // Two INDEPENDENT controls so we never trade away freshness for cost:
@@ -115,8 +92,16 @@ Claim: "${content.substring(0, 800)}"`,
 //     web search is still ON (e.g. GraphRAG gave supporting context but the
 //     specific claim still needs fresh web verification).
 async function searchAndVerdict(userContent, ragContext, factCheckContext, trustContext, graphRagContext, language, skipWebSearch = false, useCheapModel = false, persona = 'General Public', tokens = { count: 0 }) {
-  const langInstruction = language === 'bn'
-    ? '\nProvide your explanation in Bangla (বাংলা) language.'
+  // Output language follows the claim's language (or the UI override) so the tool
+  // is globally usable. The verdict VALUE stays English because the frontend and
+  // normalizeVerdictCode key colours/TTS off "Likely True"/"Likely False"/"Uncertain".
+  const LANG_NAMES = {
+    bn: 'Bangla (বাংলা)', hi: 'Hindi (हिन्दी)', ur: 'Urdu (اردو)', ar: 'Arabic (العربية)',
+    es: 'Spanish (Español)', fr: 'French (Français)', pt: 'Portuguese', id: 'Indonesian',
+    ta: 'Tamil (தமிழ்)', ne: 'Nepali (नेपाली)', tr: 'Turkish', ru: 'Russian (Русский)',
+  };
+  const langInstruction = (language && language !== 'en')
+    ? `\nIMPORTANT: Write ALL human-readable text — explanation, key_findings, reasoning_chain, literacy_tip — in ${LANG_NAMES[language] || "the SAME language the user's claim is written in"}. Keep the JSON keys in English, and keep the "verdict" value EXACTLY one of: Likely True, Likely False, Uncertain. Be terse — non-English scripts use more tokens.`
     : '';
 
   let personaInstruction = '';
@@ -128,15 +113,25 @@ async function searchAndVerdict(userContent, ragContext, factCheckContext, trust
 
   const todayStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
+  // When web search is skipped, the model has NO live data — so it must not fall
+  // back on its own (pre-cutoff) training knowledge about the current state of the
+  // world. Otherwise stale facts like "X is the current president" get asserted
+  // confidently long after they stop being true.
+  const searchDirective = skipWebSearch
+    ? 'Do NOT search the web. Base your verdict ONLY on the EXISTING FACT-CHECKS below. Do NOT use your own training knowledge of current events, who currently holds any office, whether a person is alive, or what today\'s date implies — you cannot know those without searching. If the fact-checks do not directly resolve THIS claim, return "Uncertain".'
+    : 'Do ONE web search to verify the claim against current sources.';
+
   const SYSTEM = `You are Poirot, an elite fact-checker. Be precise and conservative. Today's date is ${todayStr}.${langInstruction}${personaInstruction}
 
-Do ONE web search, then output ONLY JSON:
+${searchDirective}
+Output ONLY JSON:
 {"verdict":"Likely True"|"Likely False"|"Uncertain","confidence":0-100,"explanation":"2-3 SHORT sentences citing the key evidence","key_findings":["finding1","finding2"],"sources":["url1","url2"],"bias_flags":[],"reasoning_chain":["step1","step2"],"literacy_tip":"1 short tip to spot this kind of misinformation"}
 
 Rules:
 - "Likely True" → Confirmed by reliable sources
 - "Likely False" → Contradicted, reused/out-of-context, fabricated
 - "Uncertain" → Insufficient evidence. Never guess.
+- POLARITY: a fact-check's rating applies to ITS OWN wording — map it to THIS claim's wording, watching negations. A debunking fact-check EXISTING does NOT make the claim true. If a reputable check rates a claim meaning the SAME as this one false/fake/misleading/"pants on fire", this claim is "Likely False"; if rated true/correct/accurate, "Likely True". E.g. claim "the Moon landing is fake/a hoax" is "Likely False" when fact-checkers confirm the landing really happened.
 - BE CONCISE. Keep the whole JSON under ~180 words so it is never cut off. explanation ≤ 3 sentences, key_findings ≤ 3 items, reasoning_chain ≤ 3 brief steps. In Bangla, be especially terse — Bangla uses far more tokens.
 ${ragContext ? '\n=== KNOWLEDGE BASE CONTEXT ===\n' + ragContext + '\n===' : ''}
 ${graphRagContext ? '\n=== GRAPH RAG CONTEXT ===\n' + graphRagContext + '\n===' : ''}
@@ -233,6 +228,11 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
   let subClaims = [];
   let ragContext = '';
   let graphRagContext = '';
+  // Google Fact Check is fired in parallel with preprocessing using a best-effort
+  // seed query; `parallelFcSeed` is what it was queried with so we can decide later
+  // whether a refined-query retry is worthwhile.
+  let factChecksParallel = [];
+  let parallelFcSeed = '';
 
   // ── Step 1 & 3: Preprocess and Retrieve in Parallel ─────────────────────
   if (type === 'image' && imageBlock) {
@@ -248,40 +248,50 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
           extracted.satirical_reason || 'Satirical/meme content detected.',
           'Image identified as satire or meme content',
           'Image classified as satirical by vision agent',
-          agents, t0, hasLangOverride ? languageOverride : detectLanguage(extracted.visible_text), tokens
+          agents, t0, hasLangOverride ? languageOverride : (extracted.lang || detectLanguage(extracted.visible_text)), tokens
         );
       }
-      language = detectLanguage(extracted?.visible_text);
+      language = extracted?.lang || detectLanguage(extracted?.visible_text);
     } catch (e) {
       console.error('[Agent:Extract] Failed:', e.message);
     }
 
-    // Now decompose the claim, query RAG, and query GraphRAG in parallel.
+    // Sub-claims now come straight from the vision extractor (one fewer LLM call).
+    // Query RAG, GraphRAG, and Google Fact Check in parallel against the extracted
+    // claim — all three are independent (free DB + free API).
     const textContent = extracted?.key_claim || content;
-    const [decompRes, ragRes, graphRes] = await Promise.all([
-      decomposeClaimIfComplex(textContent, tokens),
+    parallelFcSeed = (extracted?.search_query || textContent || '').toString().substring(0, 200);
+    const [ragRes, graphRes, fcRes] = await Promise.all([
       searchRelevantContext(textContent),
-      retrieveGraphContext(textContent.substring(0, 300))
+      retrieveGraphContext(textContent.substring(0, 300)),
+      queryGoogleFactCheck(parallelFcSeed),
     ]);
 
-    subClaims = decompRes;
+    subClaims = Array.isArray(extracted?.sub_claims) && extracted.sub_claims.length
+      ? extracted.sub_claims.slice(0, 3)
+      : [textContent];
     ragContext = ragRes;
     graphRagContext = graphRes;
+    factChecksParallel = fcRes;
     if (subClaims.length > 1) agents.push('decomposer');
   } else {
     // Text: Run classification, claim decomposition, RAG, and GraphRAG all in parallel.
     // This removes multiple sequential round-trips to the LLM and the database.
-    const [classRes, decompRes, ragRes, graphRes] = await Promise.all([
+    parallelFcSeed = (content || '').substring(0, 200);
+    const [classRes, ragRes, graphRes, fcRes] = await Promise.all([
       classifyClaim(content, type, tokens),
-      decomposeClaimIfComplex(content, tokens),
       searchRelevantContext(content),
-      retrieveGraphContext(content.substring(0, 300))
+      retrieveGraphContext(content.substring(0, 300)),
+      queryGoogleFactCheck(parallelFcSeed),
     ]);
 
     classification = classRes;
-    subClaims = decompRes;
+    subClaims = Array.isArray(classRes.sub_claims) && classRes.sub_claims.length
+      ? classRes.sub_claims.slice(0, 3)
+      : [content];
     ragContext = ragRes;
     graphRagContext = graphRes;
+    factChecksParallel = fcRes;
 
     agents.push('classifier');
     if (subClaims.length > 1) agents.push('decomposer');
@@ -309,6 +319,8 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
   const promptParts = [];
 
   if (extracted) {
+    const enQuery = extracted.search_query || extracted.key_claim;
+    const nativeQuery = extracted.search_query_native;
     const lines = [
       '=== IMAGE CONTENT ANALYSIS ===',
       `Text: ${extracted.visible_text || 'None'}`,
@@ -319,7 +331,7 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
       `Source: ${extracted.source || 'None'}`,
       `Key Claim: ${extracted.key_claim || 'Unknown'}`,
       subClaims.length > 1 ? `Sub-claims: ${subClaims.join(' | ')}` : '',
-      `\nSearch: "${extracted.search_query || extracted.key_claim}"`,
+      `\nTo verify, search the web. For internationally-reported topics, search in English: "${enQuery}".${nativeQuery && nativeQuery !== enQuery ? ` If the claim is local or regional, ALSO search in its original language: "${nativeQuery}".` : ''}`,
     ].filter(Boolean);
     promptParts.push({ type: 'text', text: lines.join('\n') });
   } else if (imageBlock) {
@@ -329,7 +341,17 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
     const claimText = subClaims.length > 1
       ? `Verify these related claims:\n${subClaims.map((c, i) => `${i + 1}. "${c}"`).join('\n')}`
       : `Verify: "${content}"`;
-    promptParts.push({ type: 'text', text: claimText });
+    // Locality-aware search: English maximises coverage for internationally-
+    // reported topics, but LOCAL/regional claims (e.g. Bangladeshi news, local
+    // people/places) are often only covered in the original language — so tell
+    // the agent to use English for global topics and the claim's own language
+    // for local ones. (Output language is handled separately by langInstruction.)
+    const enQuery = classification?.search_query;
+    const nativeQuery = classification?.search_query_native;
+    const searchHint = enQuery
+      ? `\nTo verify, search the web. For internationally-reported topics, search in English: "${enQuery}".${nativeQuery && nativeQuery !== enQuery ? ` If the claim is local or regional, ALSO search in its original language: "${nativeQuery}" — to reach primary local sources.` : ''}`
+      : '';
+    promptParts.push({ type: 'text', text: claimText + searchHint });
   }
 
   // ── Step 4b: Context retrieval — runs AFTER we know the real claim ───────
@@ -339,8 +361,13 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
   const retrievalText = (extracted?.key_claim || content || '').toString().substring(0, 500);
   const factCheckQuery = (classification?.search_query || extracted?.search_query || retrievalText).toString().substring(0, 200);
 
-  // Google Fact Check runs here using the search query generated in parallel
-  const existingFactChecks = await queryGoogleFactCheck(factCheckQuery);
+  // Google Fact Check already ran in parallel with preprocessing using a best-effort
+  // seed query. If that came up empty, retry once with the LLM-refined English search
+  // query (better recall for Bangla/non-English claims). The API is free → no tokens.
+  let existingFactChecks = factChecksParallel || [];
+  if (existingFactChecks.length === 0 && factCheckQuery && factCheckQuery !== parallelFcSeed) {
+    existingFactChecks = await queryGoogleFactCheck(factCheckQuery);
+  }
 
   let factCheckContext = '';
   if (existingFactChecks.length > 0) {
@@ -355,15 +382,22 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
   //
   // The verdict ALWAYS runs on Haiku now: ~3x cheaper than Sonnet, much faster,
   // and it keeps the round-trip under Chrome's 30s service-worker limit. Web
-  // search stays ON for freshness in every case EXCEPT when we already have a
-  // strong Google Fact Check match — the only signal strong enough to trust
-  // without fresh web verification.
+  // search stays ON for freshness by default. We ONLY skip it on a strong Google
+  // Fact Check match AND when the claim is not time-sensitive — otherwise a stale
+  // fact-check (or the model's pre-cutoff training knowledge) silently goes wrong
+  // as the world changes (e.g. who currently holds an office, who is alive).
   const hasStrongFactCheck = factCheckContext && factCheckContext.includes('EXISTING FACT-CHECKS');
-  const skipWebSearch = hasStrongFactCheck;
+  const freshnessText = (content || extracted?.key_claim || extracted?.visible_text || '').toString().toLowerCase();
+  const timeSensitive =
+    classification?.category === 'politics' ||
+    /\b(president|prime minister|\bpm\b|chancellor|minister|ceo|leader|king|queen|champion|current|currently|now|today|still|this year|in office|holds office|alive|dead|died|resign|elected|winner|incumbent|latest)\b/.test(freshnessText);
+  const skipWebSearch = hasStrongFactCheck && !timeSensitive;
   const useCheaperModel = true; // Haiku for the verdict by default
 
   agents.push(skipWebSearch ? '9router_fast_path' : '9router_cheap_model');
-  console.log(`[Agent:Router] ${skipWebSearch ? 'Fast path: Haiku, no web search (strong fact-check match)' : 'Haiku + web search'}`);
+  console.log(`[Agent:Router] ${skipWebSearch
+    ? 'Fast path: Haiku, no web search (strong, timeless fact-check match)'
+    : `Haiku + web search${hasStrongFactCheck && timeSensitive ? ' (fact-check found but claim is time-sensitive → verifying live)' : ''}`}`);
 
   // Step 5: Verdict synthesis (HAIKU; web search unless strong fact-check)
   agents.push('verdict_synthesizer');
@@ -439,12 +473,12 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
     claim_text: claimText,
     verdict: result.verdict,
     confidence: result.confidence || 0,
-    explanation: result.explanation || '',
-    key_findings: result.key_findings || [],
+    explanation: stripCitations(result.explanation || ''),
+    key_findings: stripCitations(result.key_findings || []),
     sources: result.sources || [],
     trust_score: null, // Will be filled by trust scoring service
     bias_flags: biasFlags,
-    reasoning_chain: result.reasoning_chain || [],
+    reasoning_chain: stripCitations(result.reasoning_chain || []),
     literacy_tip: result.literacy_tip || 'Always verify the source and look for multiple independent confirmations.',
     agents_used: agents,
     tokens_used: tokens.count,
@@ -458,6 +492,5 @@ module.exports = {
   orchestrate,
   extractImageInfo,
   classifyClaim,
-  decomposeClaimIfComplex,
   searchAndVerdict,
 };

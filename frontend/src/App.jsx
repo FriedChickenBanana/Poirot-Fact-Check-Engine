@@ -16,10 +16,19 @@ function buildBackendUrl(baseUrl, path) {
   return `${baseUrl}${normalizedPath}`
 }
 
+// Language for the UI chrome (labels, loading text). Based on the user's choice,
+// falling back to the browser language in Auto mode.
 function resolveUiLanguage(mode) {
   if (mode === 'bn' || mode === 'en') return mode
   const browserLang = (navigator.language || 'en').toLowerCase()
   return browserLang.startsWith('bn') ? 'bn' : 'en'
+}
+
+// Language sent to the backend for the VERDICT/output. In Auto mode we send
+// 'auto' so the backend detects the actual claim's language and answers in it
+// (globally scalable) — NOT the browser locale. An explicit choice wins.
+function resolveRequestLanguage(mode) {
+  return mode === 'bn' || mode === 'en' ? mode : 'auto'
 }
 
 function verdictTone(verdict) {
@@ -56,6 +65,7 @@ function App() {
   ])
   const fileInputRef = useRef(null)
   const uiLanguage = resolveUiLanguage(languageMode)
+  const requestLanguage = resolveRequestLanguage(languageMode)
 
   const backendBaseUrl = useMemo(() => {
     return normalizeBaseUrl(import.meta.env.VITE_BACKEND_BASE_URL)
@@ -132,20 +142,20 @@ function App() {
           type: 'image',
           content: content || 'uploaded image',
           base64: preview,
-          language: uiLanguage
+          language: requestLanguage
         }
       } else if (isSocialLink) {
         payload = {
           type: 'social-media',
           content: linkUrl,
           url: linkUrl,
-          language: uiLanguage
+          language: requestLanguage
         }
       } else {
         payload = {
           type: 'text',
           content: content,
-          language: uiLanguage
+          language: requestLanguage
         }
       }
 

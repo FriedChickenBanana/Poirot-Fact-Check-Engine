@@ -121,6 +121,20 @@ function repairTruncatedJson(text) {
   }
 }
 
+// ─── Strip Claude web-search citation tags ────────────────────────────────
+// The web_search tool wraps cited spans in <cite index="1-1">text</cite>. We
+// keep the inner text but drop the tags so explanations render cleanly in every
+// frontend (SPA, dashboard, extension) and over MCP/API.
+function stripCitations(value) {
+  if (typeof value === 'string') {
+    return value.replace(/<\/?cite[^>]*>/gi, '').trim();
+  }
+  if (Array.isArray(value)) {
+    return value.map(stripCitations);
+  }
+  return value;
+}
+
 // ─── Collect URLs from web_search_tool_result blocks ──────────────────────
 function collectUrls(content) {
   const urls = [];
@@ -136,5 +150,6 @@ module.exports = {
   buildImageBlock,
   extractJson,
   repairTruncatedJson,
-  collectUrls
+  collectUrls,
+  stripCitations
 };
