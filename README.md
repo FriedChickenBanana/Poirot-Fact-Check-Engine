@@ -139,10 +139,44 @@ The `POST /verify` route used by the extension and the React web app accepts a f
 
 ---
 
+## 🔌 Model Context Protocol (MCP) Server
+
+Poirot exposes its full fact-checking capabilities, RAG store, and Trust Graph to AI-native IDEs and agents (like Cursor, Claude Desktop, and Claude Code) via a zero-dependency `stdio` MCP server in `backend/mcpServer.js`.
+
+### Exposing Poirot's Tools
+The MCP server registers the following tools:
+1. `verify_claim`: Runs the 5-agent fact-checking pipeline on text/images.
+2. `query_rag`: Accesses Poirot's vector database.
+3. `query_graph_rag`: Retrieves entities and semantic relations.
+4. `query_google_fact_check`: Accesses Google's Fact Check tools.
+5. `get_source_trust_score`: Inspects domains/URLs trust scores.
+6. `scrape_web_page`: Scrapes pages or social media posts.
+
+### Setup for Cursor or Claude Desktop
+Add Poirot to your MCP configurations:
+```json
+{
+  "mcpServers": {
+    "poirot": {
+      "command": "node",
+      "args": ["c:/Users/jahan/Downloads/Projects/Poirot-Fact-Check-Engine/backend/mcpServer.js"],
+      "env": {
+        "DATABASE_URL": "your_neon_db_url_here",
+        "ANTHROPIC_API_KEY": "your_anthropic_api_key_here",
+        "GOOGLE_FACT_CHECK_API_KEY": "optional_google_key",
+        "VOYAGE_API_KEY": "optional_voyage_key"
+      }
+    }
+  }
+}
+```
+
+---
+
 ## 🏆 BuildFest '26 Alignment
 
 Poirot was significantly upgraded for the Infinity AI BuildFest 2026 (Track 5: InfoTech).
-- **Innovation**: Token-optimized 5-agent architecture.
+- **Innovation**: Token-optimized 5-agent architecture + MCP Orchestration.
 - **Technical Execution**: PGVector RAG + PostgreSQL Trust Graph.
 - **Business Model**: Enterprise API tiers + Rate Limiting.
 - **Impact**: Public real-time dashboard + Analytics.

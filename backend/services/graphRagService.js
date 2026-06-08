@@ -64,7 +64,7 @@ async function saveToGraph(text, sourceUrl = '') {
       if (!ent.name) continue;
       const embedding = await textToSimpleVector(ent.description || ent.name);
       const vectorStr = `[${embedding.join(',')}]`;
-      
+
       const res = await client.query(
         `INSERT INTO entities (name, type, description, embedding)
          VALUES ($1, $2, $3, $4::vector)
@@ -81,7 +81,7 @@ async function saveToGraph(text, sourceUrl = '') {
       for (const rel of relationships) {
         const sourceId = entityIdMap[rel.source];
         const targetId = entityIdMap[rel.target];
-        
+
         if (sourceId && targetId && sourceId !== targetId) {
           await client.query(
             `INSERT INTO entity_relationships (source_entity_id, target_entity_id, relationship_type, evidence_text, source_url)
@@ -105,8 +105,8 @@ async function saveToGraph(text, sourceUrl = '') {
 
 // ── 3. Retrieve Graph Context (AutoLlama Contextual Retrieval) ─────────────
 const MIN_ENTITY_SIM = 0.45; // cosine floor — without it, the topK nearest entities
-                             // are returned even when completely unrelated, which
-                             // injected noise and used to suppress fresh web search.
+// are returned even when completely unrelated, which
+// injected noise and used to suppress fresh web search.
 
 async function retrieveGraphContext(query, topK = 3) {
   try {
