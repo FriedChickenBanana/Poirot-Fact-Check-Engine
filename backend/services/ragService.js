@@ -193,7 +193,7 @@ async function searchRelevantContext(query, topK = 3) {
 async function learnFromVerification(claim, verdict, sources) {
   const contentType = verdict === 'Likely True' ? 'fact'
     : verdict === 'Likely False' ? 'misinfo_pattern'
-    : 'fact';
+      : 'fact';
 
   await addToKnowledgeBase({
     content: `Claim: "${claim}" — Verdict: ${verdict}`,

@@ -230,12 +230,14 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
   // including the satire early-exits below. 'auto'/absent keeps detection.
   const hasLangOverride = languageOverride === 'bn' || languageOverride === 'en';
 
-  // ── Step 1: Preprocess by type ──────────────────────────────────────────
+  let subClaims = [];
+  let ragContext = '';
+  let graphRagContext = '';
+
+  // ── Step 1 & 3: Preprocess and Retrieve in Parallel ─────────────────────
   if (type === 'image' && imageBlock) {
     // Images: the vision extractor handles satire, the core claim, visible text,
-    // and (via its language) detection. Run it FIRST and skip the text
-    // classifier — classifying the image URL was wasted work and mis-detected
-    // language (Step 2 of the old flow ran AFTER a useless classify call).
+    // and (via its language) detection. Run it FIRST to extract text content.
     try {
       extracted = await extractImageInfo(imageBlock, tokens);
       agents.push('image_extractor');
@@ -253,12 +255,39 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
     } catch (e) {
       console.error('[Agent:Extract] Failed:', e.message);
     }
+
+    // Now decompose the claim, query RAG, and query GraphRAG in parallel.
+    const textContent = extracted?.key_claim || content;
+    const [decompRes, ragRes, graphRes] = await Promise.all([
+      decomposeClaimIfComplex(textContent, tokens),
+      searchRelevantContext(textContent),
+      retrieveGraphContext(textContent.substring(0, 300))
+    ]);
+
+    subClaims = decompRes;
+    ragContext = ragRes;
+    graphRagContext = graphRes;
+    if (subClaims.length > 1) agents.push('decomposer');
   } else {
-    // Text: classify language, satire, category, and an optimized search query.
-    classification = await classifyClaim(content, type, tokens);
+    // Text: Run classification, claim decomposition, RAG, and GraphRAG all in parallel.
+    // This removes multiple sequential round-trips to the LLM and the database.
+    const [classRes, decompRes, ragRes, graphRes] = await Promise.all([
+      classifyClaim(content, type, tokens),
+      decomposeClaimIfComplex(content, tokens),
+      searchRelevantContext(content),
+      retrieveGraphContext(content.substring(0, 300))
+    ]);
+
+    classification = classRes;
+    subClaims = decompRes;
+    ragContext = ragRes;
+    graphRagContext = graphRes;
+
     agents.push('classifier');
+    if (subClaims.length > 1) agents.push('decomposer');
+
     language = hasLangOverride ? languageOverride : (classification.lang || 'en');
-    console.log(`[Agent:Classify] ${Date.now() - t0}ms`, JSON.stringify(classification));
+    console.log(`[Agent:ParallelPreprocess] ${Date.now() - t0}ms`, JSON.stringify(classification));
 
     if (classification.is_satire) {
       return satiricalResult(
@@ -275,11 +304,6 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
   // Catch the image non-satire path too (the satire exits already applied it).
   // Only steers the verdict prompt + returned language — never routing.
   if (hasLangOverride) language = languageOverride;
-
-  // Step 3: Claim decomposition for complex claims (HAIKU — ~$0.0003)
-  const textContent = extracted?.key_claim || content;
-  const subClaims = await decomposeClaimIfComplex(textContent, tokens);
-  if (subClaims.length > 1) agents.push('decomposer');
 
   // Step 4: Build the prompt for verdict agent
   const promptParts = [];
@@ -312,18 +336,11 @@ async function orchestrate({ type, content, base64, imageBlock, persona, languag
   // For images this queries the extracted key_claim (not the useless image URL),
   // and uses the optimized English search_query for Google Fact Check. The three
   // lookups are independent (free DB + API), so fan them out in parallel.
-  const retrievalText = (extracted?.key_claim || textContent || '').toString().substring(0, 500);
+  const retrievalText = (extracted?.key_claim || content || '').toString().substring(0, 500);
   const factCheckQuery = (classification?.search_query || extracted?.search_query || retrievalText).toString().substring(0, 200);
 
-  // RAG, Google Fact Check, and GraphRAG are independent — fan them out in
-  // parallel. RAG and GraphRAG each embed their own text (Voyage is ~free, and
-  // letting each embed the exact slice it's tuned for preserves accuracy); the
-  // two embedding calls run concurrently here anyway.
-  const [ragContext, existingFactChecks, graphRagContext] = await Promise.all([
-    searchRelevantContext(retrievalText),
-    queryGoogleFactCheck(factCheckQuery),
-    retrieveGraphContext(retrievalText.substring(0, 300)),
-  ]);
+  // Google Fact Check runs here using the search query generated in parallel
+  const existingFactChecks = await queryGoogleFactCheck(factCheckQuery);
 
   let factCheckContext = '';
   if (existingFactChecks.length > 0) {

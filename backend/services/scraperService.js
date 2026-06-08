@@ -17,23 +17,23 @@ const { addToKnowledgeBase } = require('./ragService');
 // Note: all URLs must be RSS/XML feeds, not HTML homepages
 const RSS_FEEDS = [
   // ── Global trusted sources ──────────────────────────────────────────────
-  { url: 'https://feeds.bbci.co.uk/news/world/rss.xml',         name: 'BBC News',        lang: 'en' },
-  { url: 'https://feeds.bbci.co.uk/news/technology/rss.xml',    name: 'BBC Tech',        lang: 'en' },
-  { url: 'https://www.snopes.com/feed/',                         name: 'Snopes',          lang: 'en' },
-  { url: 'https://www.boomlive.in/feed',                         name: 'BOOM Live',       lang: 'en' },
-  { url: 'https://www.altnews.in/feed/',                         name: 'Alt News',        lang: 'en' },
+  { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', name: 'BBC News', lang: 'en' },
+  { url: 'https://feeds.bbci.co.uk/news/technology/rss.xml', name: 'BBC Tech', lang: 'en' },
+  { url: 'https://www.snopes.com/feed/', name: 'Snopes', lang: 'en' },
+  { url: 'https://www.boomlive.in/feed', name: 'BOOM Live', lang: 'en' },
+  { url: 'https://www.altnews.in/feed/', name: 'Alt News', lang: 'en' },
 
   // ── Bangladesh English sources ──────────────────────────────────────────
-  { url: 'https://www.thedailystar.net/rss.xml',                 name: 'The Daily Star',  lang: 'en' },
-  { url: 'https://bdnews24.com/stories.rss',                           name: 'bdnews24 EN',     lang: 'en' },
-  { url: 'https://en.prothomalo.com/stories.rss',                      name: 'Prothom Alo EN',  lang: 'en' },
+  { url: 'https://www.thedailystar.net/rss.xml', name: 'The Daily Star', lang: 'en' },
+  { url: 'https://bdnews24.com/stories.rss', name: 'bdnews24 EN', lang: 'en' },
+  { url: 'https://en.prothomalo.com/stories.rss', name: 'Prothom Alo EN', lang: 'en' },
 
   // ── Bangladesh Bangla sources (বাংলা) ───────────────────────────────────
   // Bangla feeds are stored with lang:'bn' so the AI responds in Bangla
-  { url: 'https://www.prothomalo.com/stories.rss',                     name: 'প্রথম আলো',       lang: 'bn' },
-  { url: 'https://bangla.bdnews24.com/stories.rss',                    name: 'bdnews24 বাংলা',  lang: 'bn' },
-  { url: 'https://dhakapost.com/rss/rss.xml',                  name: 'dhaka post বাংলা',      lang: 'bn' },
-  { url: 'https://www.ittefaq.com.bd/feed/',                   name: 'দৈনিক ইত্তেফাক',  lang: 'bn' },
+  { url: 'https://www.prothomalo.com/stories.rss', name: 'প্রথম আলো', lang: 'bn' },
+  { url: 'https://bangla.bdnews24.com/stories.rss', name: 'bdnews24 বাংলা', lang: 'bn' },
+  { url: 'https://dhakapost.com/rss/rss.xml', name: 'dhaka post বাংলা', lang: 'bn' },
+  { url: 'https://www.ittefaq.com.bd/feed/', name: 'দৈনিক ইত্তেফাক', lang: 'bn' },
 ];
 
 // ── Fetch a URL and return its body string ─────────────────────────────────
