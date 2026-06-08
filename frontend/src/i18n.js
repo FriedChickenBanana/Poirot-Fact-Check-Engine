@@ -30,7 +30,8 @@ export const I18N = {
     extractingContent: 'Extracting content from link...',
     socialMediaExtracted: 'Text extracted from social media',
     failedToExtract: 'Could not extract content from this link',
-    linkVerification: 'Link Verification'
+    linkVerification: 'Link Verification',
+    trustScore: 'Trust Score'
   },
   bn: {
     title: 'Poirot : তথ্য যাচাই ইঞ্জিন',
@@ -63,7 +64,8 @@ export const I18N = {
     extractingContent: 'লিংক থেকে কনটেন্ট বের করা হচ্ছে...',
     socialMediaExtracted: 'সোশ্যাল মিডিয়া থেকে পাঠ্য বের করা হয়েছে',
     failedToExtract: 'এই লিংক থেকে কনটেন্ট বের করা যায়নি',
-    linkVerification: 'লিংক যাচাই'
+    linkVerification: 'লিংক যাচাই',
+    trustScore: 'বিশ্বাসযোগ্যতা'
   }
 };
 
