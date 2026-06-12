@@ -23,11 +23,20 @@
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-#misinfo-detector-ui * { box-sizing: border-box; }
+#misinfo-detector-ui * {
+  box-sizing: border-box;
+}
 
 #misinfo-detector-ui .misinfo-close {
   position: absolute;
@@ -48,7 +57,11 @@
   padding: 0;
   line-height: 1;
 }
-#misinfo-detector-ui .misinfo-close:hover { background: #ffffff; color: #000000; }
+
+#misinfo-detector-ui .misinfo-close:hover {
+  background: #ffffff;
+  color: #000000;
+}
 
 #misinfo-detector-ui .misinfo-brand {
   display: flex;
@@ -61,7 +74,11 @@
   color: #ffffff;
   text-transform: uppercase;
 }
-#misinfo-detector-ui .misinfo-brand-icon { font-size: 18px; }
+
+#misinfo-detector-ui .misinfo-brand-icon {
+  font-size: 18px;
+}
+
 #misinfo-detector-ui .misinfo-brand-badge {
   background: #ffffff;
   color: #000000;
@@ -95,18 +112,47 @@
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-#misinfo-detector-ui .badge-true { background-color: #000000; color: #00ff00; border-color: #00ff00; }
-#misinfo-detector-ui .badge-false { background-color: #000000; color: #ff0000; border-color: #ff0000; }
-#misinfo-detector-ui .badge-uncertain { background-color: #000000; color: #ffff00; border-color: #ffff00; }
-#misinfo-detector-ui .badge-satirical { background-color: #000000; color: #ffffff; border-color: #ffffff; }
-#misinfo-detector-ui .badge-error { background-color: #000000; color: #888888; border-color: #888888; }
+#misinfo-detector-ui .badge-true {
+  background-color: #000000;
+  color: #00ff00;
+  border-color: #00ff00;
+}
+
+#misinfo-detector-ui .badge-false {
+  background-color: #000000;
+  color: #ff0000;
+  border-color: #ff0000;
+}
+
+#misinfo-detector-ui .badge-uncertain {
+  background-color: #000000;
+  color: #ffff00;
+  border-color: #ffff00;
+}
+
+#misinfo-detector-ui .badge-satirical {
+  background-color: #000000;
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+#misinfo-detector-ui .badge-error {
+  background-color: #000000;
+  color: #888888;
+  border-color: #888888;
+}
 
 #misinfo-detector-ui .misinfo-metrics {
   display: flex;
   gap: 12px;
   text-align: right;
 }
-#misinfo-detector-ui .misinfo-metric { display: flex; flex-direction: column; }
+
+#misinfo-detector-ui .misinfo-metric {
+  display: flex;
+  flex-direction: column;
+}
+
 #misinfo-detector-ui .metric-label {
   font-size: 10px;
   color: #ffffff;
@@ -114,6 +160,7 @@
   letter-spacing: 0.5px;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
+
 #misinfo-detector-ui .metric-value {
   font-size: 16px;
   font-weight: 700;
@@ -160,26 +207,35 @@
   border-bottom: 1px dashed #ffffff;
   color: #ffffff;
 }
+
 #misinfo-detector-ui .misinfo-findings li::before {
   content: '→';
   color: #ffffff;
   margin-right: 6px;
   font-weight: bold;
 }
+
 #misinfo-detector-ui .misinfo-findings li:last-child {
   border-bottom: none;
   margin-bottom: 0;
   padding-bottom: 0;
 }
 
-#misinfo-detector-ui .misinfo-sources li { margin-bottom: 6px; }
+#misinfo-detector-ui .misinfo-sources li {
+  margin-bottom: 6px;
+}
+
 #misinfo-detector-ui .misinfo-sources a {
   color: #ffffff;
   font-weight: bold;
   text-decoration: none;
   border-bottom: 1px solid #ffffff;
 }
-#misinfo-detector-ui .misinfo-sources a:hover { background-color: #ffffff; color: #000000; }
+
+#misinfo-detector-ui .misinfo-sources a:hover {
+  background-color: #ffffff;
+  color: #000000;
+}
 
 #misinfo-detector-ui .misinfo-meta {
   margin-top: 20px;
@@ -222,9 +278,23 @@
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   margin-right: 8px;
 }
-#misinfo-detector-ui .misinfo-feedback button:hover { background: #ffffff; color: #000000; }
-#misinfo-detector-ui .misinfo-feedback button.active-up { background: #000000; border-color: #00ff00; color: #00ff00; }
-#misinfo-detector-ui .misinfo-feedback button.active-down { background: #000000; border-color: #ff0000; color: #ff0000; }
+
+#misinfo-detector-ui .misinfo-feedback button:hover {
+  background: #ffffff;
+  color: #000000;
+}
+
+#misinfo-detector-ui .misinfo-feedback button.active-up {
+  background: #000000;
+  border-color: #00ff00;
+  color: #00ff00;
+}
+
+#misinfo-detector-ui .misinfo-feedback button.active-down {
+  background: #000000;
+  border-color: #ff0000;
+  color: #ff0000;
+}
 
 #misinfo-detector-ui #misinfo-feedback-form textarea {
   width: 100%;
@@ -239,7 +309,10 @@
   min-height: 80px;
   margin-bottom: 12px;
 }
-#misinfo-detector-ui #misinfo-feedback-form textarea:focus { outline: none; }
+
+#misinfo-detector-ui #misinfo-feedback-form textarea:focus {
+  outline: none;
+}
 
 #misinfo-detector-ui #misinfo-submit-feedback {
   background: #ffffff;
@@ -250,7 +323,11 @@
   letter-spacing: 1px;
   font-weight: 700;
 }
-#misinfo-detector-ui #misinfo-submit-feedback:hover { background: #000000; color: #ffffff; }
+
+#misinfo-detector-ui #misinfo-submit-feedback:hover {
+  background: #000000;
+  color: #ffffff;
+}
 
 /* Loading state */
 #misinfo-detector-ui .misinfo-loading-spinner {
@@ -262,9 +339,65 @@
   animation: spin 1s linear infinite;
   margin: 0 auto 16px;
 }
-@keyframes spin { 100% { transform: rotate(360deg); } }
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
 
 /* Scrollbar */
-#misinfo-detector-ui::-webkit-scrollbar { width: 6px; }
-#misinfo-detector-ui::-webkit-scrollbar-track { background: #000000; }
-#misinfo-detector-ui::-webkit-scrollbar-thumb { background: #ffffff; border-radius: 0; }
+#misinfo-detector-ui::-webkit-scrollbar {
+  width: 6px;
+}
+
+#misinfo-detector-ui::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+#misinfo-detector-ui::-webkit-scrollbar-thumb {
+  background: #ffffff;
+  border-radius: 0;
+}
+
+/* Sponsored section */
+#misinfo-detector-ui .misinfo-sponsor-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  margin-top: 20px;
+  cursor: pointer;
+}
+
+#misinfo-detector-ui .misinfo-sponsor {
+  border: 2px solid #ffffff;
+  border-radius: 0;
+  padding: 16px;
+  background: hsl(237, 96%, 47%);
+  text-align: center;
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+#misinfo-detector-ui .misinfo-sponsor:hover {
+  box-shadow: 4px 4px 0px #ffffff;
+  background-color: #0a0a0a;
+}
+
+#misinfo-detector-ui .misinfo-sponsor-text {
+  font-size: 11px;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  margin-bottom: 12px;
+}
+
+#misinfo-detector-ui .misinfo-sponsor-img {
+  max-width: 100%;
+  max-height: 120px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+  border: 1px solid #ffffff;
+}

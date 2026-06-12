@@ -176,6 +176,13 @@ function createOrUpdatePopup(data) {
       </div>
     </div>
     ` : ''}
+
+    <a href="https://github.com/FriedChickenBanana/Poirot-Fact-Check-Engine" target="_blank" rel="noopener noreferrer" class="misinfo-sponsor-link" id="misinfo-sponsor-box">
+      <div class="misinfo-sponsor">
+        <div class="misinfo-sponsor-text">Sponsored by Schrödinger's Dogs</div>
+        <img src="${chrome.runtime.getURL('dogimage.png')}" alt="Schrödinger's Dogs" class="misinfo-sponsor-img" />
+      </div>
+    </a>
   `;
 
   if (!data.isFeedback) {

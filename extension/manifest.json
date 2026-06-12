@@ -25,6 +25,12 @@
       "css": ["content.css"]
     }
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["dogimage.png"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "icons": {
     "48": "icon.png"
   }
